@@ -143,8 +143,13 @@ code lands; the workflow needs no change.
 
 | File | Trigger | What it does |
 |---|---|---|
-| `.github/workflows/ci.yml` | PRs into `main`; pushes to non-main branches | Guard, tests, Docker build check (no push) |
+| `.github/workflows/ci.yml` | PRs into `main`; pushes to non-main branches | Guard, Python checks, Node checks, Docker build check (no push) |
 | `.github/workflows/release.yml` | Pushes to `main`; manual dispatch | Builds and pushes the image to Docker Hub |
+
+The `ci.yml` checks: `Test (Python)` byte-compiles the source and runs `ruff`/`pytest` when
+configured; `Test (Node)` runs lint, type-check and tests once a root `package.json` exists
+(and skips cleanly until then); `Docker build` builds the image without pushing. The guard
+job runs on pull requests only.
 
 The guard lives in `ci.yml` on purpose: one red check on the PR blocks the merge
 button. Splitting it into its own workflow would still work, but keeping the
