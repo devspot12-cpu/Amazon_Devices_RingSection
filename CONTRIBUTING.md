@@ -114,6 +114,9 @@ Required repository secrets (Settings → Secrets and variables → Actions):
 | `DOCKERHUB_USERNAME` | Your Docker Hub username |
 | `DOCKERHUB_TOKEN` | A Docker Hub **access token**, not your password |
 
+The workflow also accepts `DOCKER_USERNAME` and `DOCKER_TOKEN` as fallbacks, so
+either spelling works. Use one username secret and one token secret.
+
 Create the token at https://hub.docker.com/settings/security. Use an access
 token rather than the account password: it can be scoped and revoked
 independently.

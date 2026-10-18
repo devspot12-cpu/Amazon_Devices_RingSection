@@ -46,8 +46,14 @@ Open <http://localhost:3000> and:
 
 ### Real Ring or Postgres
 
-Copy `.env.example` to `.env` and fill in the credentials (`RING_SIM=1` forces the simulator
-even when credentials are present).
+Copy the template to the **app** directory and fill it in (Next only loads env files from
+`apps/web/`; a `.env` in the repo root is ignored):
+
+```powershell
+Copy-Item .env.example apps\web\.env.local
+```
+
+`RING_SIM=1` forces the simulator even when credentials are present.
 
 Fastest path with a real Ring account — one pasted token, nothing else:
 

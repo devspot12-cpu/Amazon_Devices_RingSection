@@ -18,7 +18,9 @@ permissions:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/aws-demo
+  # Image repository name, without the user/org prefix. The full image becomes
+  # <dockerhub-user>/<IMAGE_REPO>. Change this one line to rename the image.
+  IMAGE_REPO: aws-demo
 
 jobs:
   release:
@@ -37,14 +39,45 @@ jobs:
             echo "::warning::No Dockerfile in the repo yet. Add one and this job will push an image."
           fi
 
-      - name: Fail early if Docker Hub secrets are missing
+      # Resolve credentials BEFORE anything that needs them.
+      #
+      # GitHub returns an empty string for a secret that does not exist, so a
+      # name mismatch used to fail the release with no hint as to which name was
+      # wrong. Accepting both spellings makes the pipeline work either way.
+      # Note: `secrets` is only available at job/step level, not in the
+      # workflow-level `env` block, which is why this happens in a step.
+      - name: Resolve Docker Hub credentials
+        id: resolve
         if: steps.check.outputs.found == 'true'
+        env:
+          NAME_PRIMARY: ${{ secrets.DOCKERHUB_USERNAME }}
+          NAME_FALLBACK: ${{ secrets.DOCKER_USERNAME }}
+          TOKEN_PRIMARY: ${{ secrets.DOCKERHUB_TOKEN }}
+          TOKEN_FALLBACK: ${{ secrets.DOCKER_TOKEN }}
         run: |
-          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-            echo "::error::Add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in"
-            echo "::error::Settings > Secrets and variables > Actions."
+          USERNAME="${NAME_PRIMARY:-$NAME_FALLBACK}"
+          PASSWORD="${TOKEN_PRIMARY:-$TOKEN_FALLBACK}"
+
+          if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+            echo "::error::No Docker Hub credentials found."
+            echo "::error::Add them in Settings > Secrets and variables > Actions."
+            echo "::error::Username secret - DOCKERHUB_USERNAME or DOCKER_USERNAME"
+            echo "::error::Token secret    - DOCKERHUB_TOKEN or DOCKER_TOKEN"
+            echo "::error::Found username: $([ -n "$USERNAME" ] && echo yes || echo NO) | found token: $([ -n "$PASSWORD" ] && echo yes || echo NO)"
             exit 1
           fi
+
+          # Mask the password so it can never reach the logs.
+          echo "::add-mask::$PASSWORD"
+
+          # Step outputs (not $GITHUB_ENV) so later steps reference them
+          # explicitly via steps.resolve.outputs.* - no ambiguity.
+          echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+          echo "image=$USERNAME/${IMAGE_REPO:-aws-demo}" >> "$GITHUB_OUTPUT"
+
+          echo "Docker Hub user resolved: $USERNAME"
+          echo "Image will be pushed as: $USERNAME/${IMAGE_REPO:-aws-demo}"
 
       - name: Set up Buildx
         if: steps.check.outputs.found == 'true'
@@ -55,15 +88,15 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ steps.resolve.outputs.username }}
+          password: ${{ steps.resolve.outputs.password }}
 
       - name: Derive image tags and labels
         if: steps.check.outputs.found == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ steps.resolve.outputs.image }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
