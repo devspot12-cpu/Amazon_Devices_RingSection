@@ -58,7 +58,15 @@ jobs:
       - name: No merge commits on the branch
         run: |
           BASE="origin/${{ github.base_ref }}"
-          MERGES=$(git rev-list --merges "$BASE..HEAD" | wc -l)
+          # Use the PR's real head commit, NOT HEAD.
+          #
+          # On pull_request events GitHub checks out a synthetic merge commit
+          # (refs/pull/<n>/merge) that merges the head branch into the base.
+          # That commit has two parents, so `rev-list --merges <base>..HEAD`
+          # counts GitHub's own merge and always reports >= 1 - a false failure
+          # on every PR. Measuring base..head_sha looks only at the branch.
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          MERGES=$(git rev-list --merges "$BASE..$HEAD_SHA" | wc -l)
           if [ "$MERGES" -gt 0 ]; then
             echo "::error::This branch contains $MERGES merge commit(s). Rebase onto main instead:"
             echo "::error::  git fetch origin && git rebase origin/main"

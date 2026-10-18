@@ -18,7 +18,7 @@ permissions:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/amazon-devices-ringsection
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/aws-demo
 
 jobs:
   release:

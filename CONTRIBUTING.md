@@ -101,6 +101,12 @@ The image is built and pushed **only from `main`**, by the `Release` workflow �
 i.e. after a PR is merged. PRs run a build check without pushing, so a broken
 `Dockerfile` fails the PR rather than the release.
 
+The image published is:
+
+```
+<your-dockerhub-username>/aws-demo
+```
+
 Required repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
@@ -118,6 +124,20 @@ Image tags produced:
 |---|---|
 | `latest` | The current tip of `main` |
 | `sha-<short>` | That exact commit — use this for reproducible deploys |
+
+### Running the image
+
+```bash
+docker run --rm -p 8080:8080 <your-dockerhub-username>/aws-demo:latest
+curl http://localhost:8080/health
+```
+
+### Note on the current contents
+
+`app.py` is a **placeholder service** (a tiny HTTP server answering `/` and
+`/health`). It exists so the pipeline is verifiable end to end — a merge to main
+produces a runnable image. Replace `app.py` with the real Ring service when that
+code lands; the workflow needs no change.
 
 ## Workflows
 

@@ -1,0 +1,9 @@
+# Runtime dependencies for the Ring service.
+#
+# The current app.py is a placeholder built on the Python standard library, so
+# there is nothing to install yet. Add real dependencies here as the service
+# grows; the Dockerfile installs this file automatically.
+#
+# Example:
+#   requests>=2.32
+#   python-dotenv>=1.0
