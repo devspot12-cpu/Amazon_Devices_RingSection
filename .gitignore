@@ -1,11 +1,51 @@
-.htaccess
-css.php
-rpc/
-sites/site*/admin/
-sites/site*/private/
-sites/site*/public/admin/
-sites/site*/public/setup/
-sites/site*/public/theme/
-textpattern/
-HISTORY.txt
-README.txt
+# Ignore rules for this repository.
+#
+# NOTE: the previous contents were a Textpattern CMS template (.htaccess, css.php,
+# sites/site*/...). None of those paths exist here, and the file did NOT ignore
+# .env - a real risk once credentials are involved. Replaced with rules that
+# match this project. Nothing tracked was removed by this change.
+
+# ---- Secrets: never commit these ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+client_secret*.json
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# ---- Node ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# ---- Build output ----
+target/
+*.log
+
+# ---- Editors and OS ----
+.idea/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

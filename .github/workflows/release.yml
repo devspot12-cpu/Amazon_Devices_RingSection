@@ -1,0 +1,80 @@
+name: Release
+
+# Builds and pushes the Docker image, but ONLY from main, and only after a PR
+# has been merged. Pull requests never trigger this workflow.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never cancel a release mid-flight: two rapid merges to main would otherwise
+# race and one image could be left half-pushed.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/amazon-devices-ringsection
+
+jobs:
+  release:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check whether a Dockerfile exists
+        id: check
+        run: |
+          if [ -f Dockerfile ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No Dockerfile in the repo yet. Add one and this job will push an image."
+          fi
+
+      - name: Fail early if Docker Hub secrets are missing
+        if: steps.check.outputs.found == 'true'
+        run: |
+          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "::error::Add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in"
+            echo "::error::Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Set up Buildx
+        if: steps.check.outputs.found == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: steps.check.outputs.found == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Derive image tags and labels
+        if: steps.check.outputs.found == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        if: steps.check.outputs.found == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
