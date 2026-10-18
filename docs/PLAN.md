@@ -1,7 +1,9 @@
 # Predator Guard — Build Plan
 
 **Status:** planning · **Owner:** @suchet · **Created:** 2026-10-18
-**Stack decision:** TypeScript (API, webhooks, dashboard) + Python (vision worker) — *confirmed*
+**Stack decision:** **TypeScript / JavaScript only** — Next.js full-stack (React UI + Route
+Handlers). The Python worker is dropped; vision runs as an **Amazon Bedrock** vision-model call
+from Node. See `FEATURES.md` and §5.
 
 > How to read this doc: Sections 1–8 are the *what and why* (locked before we start coding).
 > Section 9 is the *execution roadmap* — phases with concrete tasks and a "done when" gate.
@@ -47,6 +49,8 @@ threats, and shows *which zone* was hit *and when*.
 - **Build plan (PDF):** `Predator Guard Ring build plan.pdf` — the model cannot read PDF
   input directly, but the identical text is already committed in `Proposal.md.md`, so the
   plan is fully captured. Nothing is missing.
+- **Feature set:** [`FEATURES.md`](FEATURES.md) — the authoritative list of what we build,
+  with testable acceptance criteria and milestones. Where the two disagree, `FEATURES.md` wins.
 - **Ring Partner API docs:** https://developer.amazon.com/docs/ring/api-documentation.html
   (read in full 2026-10-18; we will save a distilled snapshot to `docs/ring-api-notes.md` in Phase 0)
 - **Companion pages read:** Computer Vision Guidelines, Ring Appstore MCP server.
@@ -156,17 +160,19 @@ Ring Backend ──(motion webhook, HMAC)──▶ Webhook URL ──▶ api ─
 ```
 predator-guard/
   apps/
-    api/          # Fastify: link flow, webhook receiver, rules, alerts
-    web/          # Next.js: dashboard + "link your Ring" page
-  services/
-    vision/       # FastAPI: media pull (snapshot/clip/RTSP) + species model
+    web/           # Next.js (App Router): dashboard + every Route Handler
+      app/
+        api/       # ring link, webhook, devices, events, alerts, summary
+        page.tsx   # dashboard
   packages/
-    ring-client/  # typed Partner API client (JSON:API, retry, refresh)
-    db/           # Drizzle schema + migrations
-    sim/          # simulator + fake Ring API + FrameSource
+    ring/          # typed Partner API client + webhook types (JSON:API, retry, refresh)
+    db/            # Drizzle schema + migrations
+    rules/         # severity engine (pure, table-driven)
+    vision/        # Bedrock adapter + CV funnel + frame selection
+    sim/           # simulator + fake Ring API + FrameSource
   docs/
-    PLAN.md  ARCHITECTURE.md  CRITIQUE.md  FRICTION_LOG.md  ring-api-notes.md
-  docker-compose.yml   # Postgres + vision + api
+    PLAN.md  FEATURES.md  ARCHITECTURE.md  CRITIQUE.md  FRICTION_LOG.md  ring-api-notes.md
+  docker-compose.yml   # Postgres + web
 ```
 
 ---
@@ -175,18 +181,25 @@ predator-guard/
 
 | Layer | Choice | Why |
 |---|---|---|
-| API + webhooks | TypeScript, Node 20, **Fastify** | Typed JSON:API, fast webhook responses |
-| Dashboard | **Next.js (React)**, same repo | Matches Ring's Hello World sample |
+| API, webhooks, jobs | **Next.js Route Handlers** (Node) | One runtime for UI + API; matches Ring's Hello World sample |
+| Dashboard | **Next.js (React)** | Same app as the API — no second service to host |
+| Language | **TypeScript**, strict | Typed JSON:API and webhook payloads |
 | Database | **Postgres**; **PGlite** in tests | Same SQL in tests, no Docker needed in CI |
 | ORM / migrations | **Drizzle** | Light, type-safe |
+| Validation | **zod** | One schema validates webhooks, request bodies and env |
 | Job queue | **pg-boss** | Runs on Postgres — no Redis to host |
-| Vision worker | **Python 3.11+, FastAPI** | Owns media pull + the model |
+| Vision | **Amazon Bedrock** vision model, Converse API | No Python service; gated on confidence per Ring's CV guidelines |
 | Media pull | **Image Snapshots** first → **Media Clips** fallback → **RTSP** optional | Cheapest path first; no WebRTC for the common case |
-| Species model | Pretrained detector + small classifier, picked after a benchmark | Avoids training from scratch |
 | Alerts | **Amazon SNS** (SMS), web push; voice call as stretch | Fits the Amazon theme |
-| Weekly summary | **Amazon Bedrock** (Nova/Claude) | Struct-validated JSON output |
-| Tests | Vitest, PGlite, pytest | See §10 |
+| Weekly summary | **Amazon Bedrock** (Nova/Claude) | Schema-validated JSON output |
+| Tests | **Vitest**, PGlite | See §10 |
 | Hosting | Any public HTTPS host (Ring requires HTTPS); tunnel in dev | Webhooks must reach us |
+
+> **Pivot (2026-10-18).** The original plan split the app across TypeScript and a Python vision
+> worker. We are going **TypeScript/JavaScript only**: the vision step becomes a Bedrock vision
+> call from Node, which removes a whole service, a language boundary and the `aiortc` risk.
+> `/analyze` is now an internal function, not an HTTP service. See `FEATURES.md` for the
+> feature-by-feature consequences.
 
 **Env vars** (names are ours; confirm against the portal)
 `RING_CLIENT_ID`, `RING_CLIENT_SECRET`, `RING_HMAC_KEY`, `TOKEN_ENC_KEY`,
@@ -391,7 +404,10 @@ merge commits, Docker build check on PR, push to Docker Hub on merge. We extend 
 
 ## 14. Immediate next action
 
-**Phase 0, task 1** — harden `ci.yml` and settle the `release.yml` image name, then push
-`dev/starter-pack` and open the PR into `main`.
+Phase 0 is done (branch `dev/task1-ci-hardening`, CI green). The build is now driven by
+[`FEATURES.md`](FEATURES.md) §4:
 
-Say **go** and I start.
+- **M0 — Foundation:** repo scaffold, `packages/ring` types, health route.
+- **M1 — Link & listen:** F1, F2, F3, F10 (basic).
+
+Say **go** and I start on M0.
