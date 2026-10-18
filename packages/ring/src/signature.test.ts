@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   NONCE_VALIDATION_WINDOW_SECONDS,
   computeLinkNonce,
+  constantTimeEqual,
   isFreshLinkTime,
   verifyWebhookSignature,
 } from './signature.js';
@@ -79,5 +80,23 @@ describe('isFreshLinkTime', () => {
 
   it('rejects a future timestamp', () => {
     expect(isFreshLinkTime(now + 1_000, now)).toBe(false);
+  });
+});
+
+describe('constantTimeEqual', () => {
+  it('accepts identical strings', () => {
+    expect(constantTimeEqual('abc123', 'abc123')).toBe(true);
+  });
+
+  it('rejects different strings, including different lengths', () => {
+    expect(constantTimeEqual('abc123', 'abc124')).toBe(false);
+    expect(constantTimeEqual('abc', 'abcd')).toBe(false);
+    expect(constantTimeEqual('', 'a')).toBe(false);
+  });
+
+  it('is the comparison behind the webhook signature check', () => {
+    const body = '{"hello":"world"}';
+    expect(verifyWebhookSignature(KEY, body, sign(body))).toBe(true);
+    expect(verifyWebhookSignature(KEY, body, sign(body, 'wrong'))).toBe(false);
   });
 });

@@ -1,0 +1,31 @@
+# Postgres for Predator Guard.
+#
+# Optional: without DATABASE_URL the app uses embedded PGlite (real Postgres
+# compiled to WASM), so `npm run dev` needs no services at all. This compose
+# file is for running against a full Postgres server:
+#
+#   docker compose up -d db
+#   DATABASE_URL=postgres://predator_guard:predator_guard@localhost:5432/predator_guard npm run dev
+#
+# The web service itself stays on npm (the repo Dockerfile is still the
+# Python placeholder from the pipeline smoke test).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: predator_guard
+      POSTGRES_PASSWORD: predator_guard
+      POSTGRES_DB: predator_guard
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U predator_guard -d predator_guard']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

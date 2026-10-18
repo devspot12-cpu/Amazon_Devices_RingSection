@@ -404,10 +404,20 @@ merge commits, Docker build check on PR, push to Docker Hub on merge. We extend 
 
 ## 14. Immediate next action
 
-Phase 0 is done (branch `dev/task1-ci-hardening`, CI green). The build is now driven by
-[`FEATURES.md`](FEATURES.md) §4:
+The build is driven by [`FEATURES.md`](FEATURES.md) §4. Status as of 2026-10-19:
 
-- **M0 — Foundation:** repo scaffold, `packages/ring` types, health route.
-- **M1 — Link & listen:** F1, F2, F3, F10 (basic).
+- **M0 — Foundation: done on `main`** (PR #4). TypeScript workspace, `packages/ring` types,
+  health route, CI on every PR.
+- **M1 — Link & listen: done on `dev/m1-link-and-listen`** (PR pending). F1 account linking
+  with the HMAC nonce claim and the AES-256-GCM token vault; F2 webhook intake with signature
+  verification, dedupe and the `jobs` drain; F3 device discovery + zone mapping; F10 the
+  mounted fake Ring API, the demo bootstrap and the dashboard home. Gate: a signed simulated
+  webhook lands as an `events` row — covered by the simulator walkthrough in the README.
+- **M2 — See (next):** F4 media pull (image snapshots, E2EE-aware) and F5 species
+  classification through the Bedrock vision model. Gate: a simulated event yields
+  "fox, 0.91". `process_event` in `apps/web/lib/pipeline.ts` is the seam: today it is an
+  explicit stub that records the event and stops.
+- **M3 — Decide & alert:** F6 zone→severity policy, F7 escalation ladder.
+- **M4 — Show & advise:** F8 dashboard, F9 weekly summary.
 
-Say **go** and I start on M0.
+Next step is M2 on a new `dev/*` branch off `main` once M1 has merged.

@@ -7,6 +7,22 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 export const NONCE_VALIDATION_WINDOW_SECONDS = 600;
 
 /**
+ * Constant-time string comparison.
+ *
+ * Used for every secret-vs-secret comparison in this repo: webhook signatures
+ * and account-linking nonces. Length is not a secret, so a length mismatch may
+ * return early; equal-length values go through `timingSafeEqual`.
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+  const aBytes = Buffer.from(a, 'utf8');
+  const bBytes = Buffer.from(b, 'utf8');
+  if (aBytes.length !== bBytes.length) {
+    return false;
+  }
+  return timingSafeEqual(aBytes, bBytes);
+}
+
+/**
  * Verify a Ring webhook signature.
  *
  * Ring sends `X-Signature: sha256=<hex>`, computed as HMAC-SHA256 over the **raw**
@@ -23,13 +39,7 @@ export function verifyWebhookSignature(
 ): boolean {
   const expected = createHmac('sha256', signingKey).update(rawBody).digest('hex');
   const received = receivedSignature.replace(/^sha256=/, '');
-
-  const expectedBytes = Buffer.from(expected, 'utf8');
-  const receivedBytes = Buffer.from(received, 'utf8');
-  if (expectedBytes.length !== receivedBytes.length) {
-    return false;
-  }
-  return timingSafeEqual(expectedBytes, receivedBytes);
+  return constantTimeEqual(expected, received);
 }
 
 /**

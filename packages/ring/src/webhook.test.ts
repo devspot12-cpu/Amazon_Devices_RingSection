@@ -60,6 +60,26 @@ describe('webhookEnvelopeSchema', () => {
   it('rejects a payload that is missing required fields', () => {
     expect(() => webhookEnvelopeSchema.parse({ meta: {}, data: {} })).toThrow();
   });
+
+  it('parses non-motion events that omit source and timestamp', () => {
+    const integrationRemoved = {
+      meta: {
+        version: '1.1',
+        time: '2026-02-13T13:40:00Z',
+        request_id: 'req-int-1',
+        account_id: 'ava1.ring.account.XXXYYY',
+      },
+      data: {
+        id: 'int-1',
+        type: 'app_integration_removed',
+        attributes: { source_type: 'app_integrations' },
+      },
+    };
+    const event = toMotionEvent(webhookEnvelopeSchema.parse(integrationRemoved));
+    expect(event.deviceId).toBe('');
+    expect(event.timestamp).toBe(0);
+    expect(event.subType).toBe('unknown');
+  });
 });
 
 describe('shouldProcessEvent - the Stage 0 free gate', () => {

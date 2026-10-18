@@ -20,9 +20,15 @@ export const webhookEnvelopeSchema = z.object({
     type: z.string(),
     attributes: z
       .object({
-        source: z.string(),
-        source_type: z.string(),
-        timestamp: z.number(),
+        /**
+         * `source` and `timestamp` are required on motion events but not
+         * guaranteed on every other event type (device_*, app_integration_*):
+         * their exact payloads are not documented in detail, so they are
+         * tolerated as missing rather than rejected (friction log).
+         */
+        source: z.string().optional(),
+        source_type: z.string().optional(),
+        timestamp: z.number().optional(),
         timestamp_readable: z.string().optional(),
         sub_type: z.string().optional(),
         component_ids: z.array(z.string()).optional(),
@@ -58,9 +64,9 @@ export function toMotionEvent(envelope: WebhookEnvelope): MotionEvent {
   return {
     requestId: envelope.meta.request_id,
     accountId: envelope.meta.account_id,
-    deviceId: attributes.source,
+    deviceId: attributes.source ?? '',
     eventId: envelope.data.id,
-    timestamp: attributes.timestamp,
+    timestamp: attributes.timestamp ?? 0,
     subType: attributes.sub_type ?? 'unknown',
     componentIds: attributes.component_ids ?? [],
   };
