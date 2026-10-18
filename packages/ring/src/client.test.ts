@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   RingApiError,
   RingClient,
+  parseHistoryEvents,
   parseIntegrationState,
   parseRetryAfter,
   parseRingDevices,
+  toEpochMs,
 } from './client.js';
 
 /** Build a Response the way fetch would hand one back. */
@@ -246,6 +248,99 @@ describe('users, devices and integrations', () => {
     expect(decodeURIComponent(calls[0]!.url)).toContain('status,capabilities,location,configurations');
   });
 
+  it('resolves includes through relationship pointers, as the live API returns them', async () => {
+    const { fetchImpl } = scriptedFetch([
+      () =>
+        jsonResponse(200, {
+          data: [
+            {
+              id: 'dev-real',
+              type: 'devices',
+              attributes: { name: 'Playground Device', image_url: 'https://x/img.png' },
+              relationships: {
+                status: { data: { type: 'device-status', id: 'dev-real.status.1' } },
+                capabilities: { data: { type: 'device-capabilities', id: 'dev-real.caps.1' } },
+                location: { data: { type: 'locations', id: 'dev-real.loc.1' } },
+                configurations: { data: { type: 'device-configurations', id: 'dev-real.conf.1' } },
+              },
+            },
+          ],
+          included: [
+            { id: 'dev-real.status.1', type: 'device-status', attributes: { online: true } },
+            {
+              id: 'dev-real.caps.1',
+              type: 'device-capabilities',
+              attributes: { motion_detection: true },
+            },
+            { id: 'dev-real.loc.1', type: 'locations', attributes: { country: 'US' } },
+            {
+              id: 'dev-real.conf.1',
+              type: 'device-configurations',
+              attributes: { e2e_encryption: { enabled: false } },
+            },
+          ],
+        }),
+    ]);
+    const devices = await makeClient(fetchImpl).listDevices('access-1');
+    // The pointer ids are resource ids, never the device id: matching by
+    // device id alone would have produced online=false against real Ring.
+    expect(devices[0]).toMatchObject({
+      ringDeviceId: 'dev-real',
+      online: true,
+      e2ee: false,
+      capabilities: { motion_detection: true },
+    });
+  });
+
+  it('falls back to defaults when relationship pointers have no included data', async () => {
+    const { fetchImpl } = scriptedFetch([
+      () =>
+        jsonResponse(200, {
+          data: [
+            {
+              id: 'dev-bare',
+              type: 'devices',
+              attributes: { name: 'Bare cam' },
+              relationships: {
+                status: { data: { type: 'device-status', id: 'dev-bare.status.1' } },
+              },
+            },
+          ],
+        }),
+    ]);
+    const devices = await makeClient(fetchImpl).listDevices('access-1');
+    expect(devices[0]).toMatchObject({
+      ringDeviceId: 'dev-bare',
+      online: false,
+      e2ee: false,
+      capabilities: null,
+    });
+  });
+
+  it('gets one device and its sub-resources the way the playground lists them', async () => {
+    const { fetchImpl, calls } = scriptedFetch([
+      () =>
+        jsonResponse(200, {
+          data: { id: 'dev-1', type: 'devices', attributes: { name: 'Coop cam' } },
+          included: [{ id: 'dev-1', type: 'status', attributes: { online: true } }],
+        }),
+      () =>
+        jsonResponse(200, {
+          data: { type: 'device-status', id: 'dev-1.status', attributes: { online: true, state: null } },
+        }),
+    ]);
+    const client = makeClient(fetchImpl);
+
+    const device = await client.getDevice('access-1', 'dev-1');
+    expect(device).toMatchObject({ ringDeviceId: 'dev-1', name: 'Coop cam', online: true });
+    expect(calls[0]!.url).toContain('/v1/devices/dev-1?include=');
+
+    const status = await client.getDeviceResource('access-1', 'dev-1', 'status');
+    expect(status.type).toBe('device-status');
+    expect(status.attributes.online).toBe(true);
+    expect(calls[1]!.url).toBe('https://api.ring.test/v1/devices/dev-1/status');
+  });
+
   it('posts, patches and deletes the app integration', async () => {
     const { fetchImpl, calls } = scriptedFetch([
       () => jsonResponse(201, { data: { type: 'app-integrations', attributes: { status: 'awaiting' } } }),
@@ -296,5 +391,189 @@ describe('parsers', () => {
     expect(parseIntegrationState({ data: { attributes: { status: 'awaiting' } } }).status).toBe('awaiting');
     expect(parseIntegrationState({ status: 'completed' }).status).toBe('completed');
     expect(parseIntegrationState(undefined).status).toBe('unknown');
+  });
+});
+
+describe('timestamp normalisation', () => {
+  it('toEpochMs accepts seconds, milliseconds and ISO strings', () => {
+    expect(toEpochMs(1_792_235_985)).toBe(1_792_235_985_000);
+    expect(toEpochMs(1_792_235_985_000)).toBe(1_792_235_985_000);
+    expect(toEpochMs('1792235985')).toBe(1_792_235_985_000);
+    expect(toEpochMs('2026-10-19T02:30:00.000Z')).toBe(Date.parse('2026-10-19T02:30:00.000Z'));
+    expect(toEpochMs('')).toBeNull();
+    expect(toEpochMs('soon')).toBeNull();
+    expect(toEpochMs(null)).toBeNull();
+    expect(toEpochMs(undefined)).toBeNull();
+  });
+});
+
+describe('event history', () => {
+  /** Ring reports epoch ms (~1.79e12); anything below 1e12 is read as seconds. */
+  const BASE_MS = 1_792_235_000_000;
+
+  const eventRow = (
+    id: string,
+    start: number | string,
+    subType: string | null = 'animal',
+  ): Record<string, unknown> => ({
+    id,
+    type: 'events',
+    attributes: {
+      event_type: 'motion',
+      sub_type: subType,
+      start,
+      ...(typeof start === 'number' ? { end: start + 10_000 } : {}),
+    },
+    relationships: { source: { data: { id: 'dev-1', type: 'devices' } } },
+  });
+
+  const historyBody = (rows: unknown[], next?: string): Record<string, unknown> => ({
+    data: rows,
+    ...(next === undefined ? {} : { links: { next } }),
+  });
+
+  it('pages through links.next in ascending order and stops at the since cursor', async () => {
+    const { fetchImpl, calls } = scriptedFetch([
+      () =>
+        jsonResponse(
+          200,
+          historyBody(
+            [eventRow('ev-3', BASE_MS + 3_000), eventRow('ev-2', BASE_MS + 2_000)],
+            '/v1/history/devices/dev-1/events?page%5Bafter%5D=ev-2',
+          ),
+        ),
+      () =>
+        jsonResponse(
+          200,
+          historyBody(
+            [eventRow('ev-1', BASE_MS + 1_000)],
+            '/v1/history/devices/dev-1/events?page%5Bafter%5D=ev-1',
+          ),
+        ),
+    ]);
+    const events = await makeClient(fetchImpl).listHistoryEvents('access-1', 'dev-1', {
+      sinceMs: BASE_MS + 1_500,
+      eventTypes: ['motion.animal'],
+    });
+
+    expect(events.map((item) => item.eventId)).toEqual(['ev-2', 'ev-3']);
+    expect(events[0]).toMatchObject({
+      ringDeviceId: 'dev-1',
+      eventType: 'motion',
+      subType: 'animal',
+      startMs: BASE_MS + 2_000,
+      endMs: BASE_MS + 12_000,
+    });
+    // Page two offered a next link, but the cursor had already been reached.
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.url).toBe(
+      'https://api.ring.test/v1/history/devices/dev-1/events?event_types=motion.animal',
+    );
+    expect(calls[1]!.url).toBe(
+      'https://api.ring.test/v1/history/devices/dev-1/events?page%5Bafter%5D=ev-2',
+    );
+  });
+
+  it('caps pages when every page claims a next link', async () => {
+    const steps = Array.from({ length: 12 }, (_, index) => () =>
+      jsonResponse(200, historyBody([eventRow(`ev-${index}`, BASE_MS + index)], '/v1/history/next')),
+    );
+    const { fetchImpl, calls } = scriptedFetch(steps);
+    const events = await makeClient(fetchImpl).listHistoryEvents('access-1', 'dev-1');
+    expect(calls).toHaveLength(10);
+    expect(events).toHaveLength(10);
+  });
+
+  it('parseHistoryEvents skips malformed rows and normalises ISO starts', () => {
+    const iso = '2026-10-19T02:30:00.000Z';
+    const parsed = parseHistoryEvents({
+      data: [eventRow('ev-iso', iso, 'human'), { id: 'ev-bad' }, 'garbage'],
+    });
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({
+      eventId: 'ev-iso',
+      subType: 'human',
+      startMs: Date.parse(iso),
+      endMs: null,
+    });
+    expect(parseHistoryEvents(null)).toEqual([]);
+    expect(parseHistoryEvents({})).toEqual([]);
+  });
+});
+
+describe('image snapshots', () => {
+  const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+
+  function imageResponse(status: number, headers: Record<string, string> = {}): Response {
+    const body = status >= 200 && status < 300 ? new Uint8Array(jpegBytes).buffer : null;
+    return new Response(body, { status, headers: { 'content-type': 'image/jpeg', ...headers } });
+  }
+
+  it('requests at_timestamp, returns bytes and reads the audit headers', async () => {
+    const { fetchImpl, calls } = scriptedFetch([
+      () =>
+        imageResponse(200, {
+          'x-media-timestamp': '1792235985',
+          'x-media-origin': 'snapshot',
+          'x-request-id': 'req-1',
+        }),
+    ]);
+    const snapshot = await makeClient(fetchImpl).fetchImageSnapshot('access-1', 'dev-1', {
+      atMs: 1_792_236_000_000,
+    });
+
+    expect(snapshot?.bytes).toEqual(jpegBytes);
+    expect(snapshot?.contentType).toBe('image/jpeg');
+    expect(snapshot?.origin).toBe('snapshot');
+    expect(snapshot?.requestId).toBe('req-1');
+    expect(snapshot?.capturedAt?.getTime()).toBe(1_792_235_985_000);
+
+    const call = calls[0]!;
+    expect(call.url).toBe('https://api.ring.test/v1/devices/dev-1/media/image/download');
+    expect(call.init.method).toBe('POST');
+    expect((call.init.headers as Record<string, string>).accept).toContain('application/vnd.api+json');
+    expect(JSON.parse(String(call.init.body))).toEqual({
+      type: 'at_timestamp',
+      timestamp: 1_792_236_000_000,
+      image_options: { format: 'jpeg', resolution: { width: 1280, height: 720 } },
+    });
+  });
+
+  it('supports latest_in_range with one component for multi-camera devices', async () => {
+    const { fetchImpl, calls } = scriptedFetch([() => imageResponse(200)]);
+    await makeClient(fetchImpl).fetchImageSnapshot('access-1', 'dev-1', {
+      range: { startMs: 1_000, endMs: 2_000 },
+      componentId: 'com-1',
+      format: 'png',
+      resolution: { width: 640, height: 360 },
+    });
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({
+      type: 'latest_in_range',
+      start_timestamp: 1_000,
+      end_timestamp: 2_000,
+      image_options: { format: 'png', resolution: { width: 640, height: 360 } },
+      components: [{ component_id: 'com-1' }],
+    });
+  });
+
+  it('returns null when no frame exists yet (403/416), never throws', async () => {
+    const { fetchImpl } = scriptedFetch([
+      () => new Response(null, { status: 416 }),
+      () => new Response(null, { status: 403 }),
+    ]);
+    const client = makeClient(fetchImpl);
+    expect(await client.fetchImageSnapshot('access-1', 'dev-1')).toBeNull();
+    expect(await client.fetchImageSnapshot('access-1', 'dev-1')).toBeNull();
+  });
+
+  it('still throws on 401 so a dead token never reads as "no frame"', async () => {
+    const { fetchImpl } = scriptedFetch([
+      () => jsonResponse(401, { errors: [{ status: '401', title: 'Unauthorized' }] }),
+    ]);
+    const error = await makeClient(fetchImpl)
+      .fetchImageSnapshot('access-1', 'dev-1')
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(RingApiError);
+    expect((error as RingApiError).status).toBe(401);
   });
 });

@@ -159,6 +159,40 @@ Then a **dead letter queue**, events kept **72 h** (replay on request).
 > Treat the vocabulary as open-ended: keep an explicit **skip list** (`human`, `vehicle`)
 > and pass everything else through to CV.
 
+## Live verification — 2026-10-19 (playground account)
+
+All eight playground endpoints were probed with a fresh token; every one answered `200`.
+The playground's Device List curl omits `include=` — without it `data[].attributes` is
+only `{name, image_url}` and the sub-resources exist as bare relationship pointers.
+Add `include=status,capabilities,location,configurations` to get `included` blocks:
+
+| Playground entry | Endpoint | `data.type` | Verified attributes (first level) |
+| --- | --- | --- | --- |
+| Users API | `GET /v1/users/me` | `users` | `email`, `first_name`, `last_name` |
+| Device List | `GET /v1/devices` | `devices` (array) | `name`, `image_url` |
+| Device Discovery | `GET /v1/devices/{id}` | `devices` | same shape; `include=` is accepted here too |
+| Status | `GET /v1/devices/{id}/status` | `device-status` | `online`, `reported_at` (ISO), `state`, `audio` |
+| Capabilities | `GET /v1/devices/{id}/capabilities` | `device-capabilities` | `battery_status`, `motion_detection`, `video`, ... |
+| Locations | `GET /v1/devices/{id}/location` | `locations` | `country`, `state` |
+| Configurations | `GET /v1/devices/{id}/configurations` | `device-configurations` | `audio`, `e2e_encryption`, `motion_detection` |
+| Event History | `GET /v1/history/devices/{id}/events` | `history-events` (array) | `start`/`end` (epoch **ms**), `event_type`, `is_third_party_reviewed` |
+
+**The include vocabulary is inverted from the relationship names**: `included` items
+carry `device-status` / `device-capabilities` / `device-configurations` / `locations`,
+and they are linked **only** through `relationships.<name>.data {type,id}` — those ids
+are resource ids (e.g. `ava1.ring.device.status.…`), **not** the device id. Matching on
+device id + bare type silently yields defaults (friction log row 25).
+
+Other verified details:
+
+- Every list/detail reply carries `meta` (`time`); event items carry `meta.riid`.
+- Playground event history: 9 `on_demand` events, **no `sub_type`** (Smart Alerts off),
+  `cv_detections.data` empty, no `links.next` while under a page.
+- Snapshot download of the playground camera: `200 image/jpeg`, ~106 KB,
+  `X-Media-Origin: recording`.
+- The playground's live-view section starts a simulated session (`Package` / `Vehicle`
+  / `Motion`) and the WHEP workflow is the documented path for viewing it.
+
 ## Event History
 
 ```
