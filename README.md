@@ -122,3 +122,6 @@ For this monorepo use:
 - **Build Command:** `npm run build --workspace @predator-guard/web`
 
 The Ring simulator is enabled automatically in development when Ring credentials are absent. For real Ring API access, configure the Ring variables from `.env.example` in Vercel; do not use `RING_SIM=1` in production.
+
+Test Abhi Change
+
