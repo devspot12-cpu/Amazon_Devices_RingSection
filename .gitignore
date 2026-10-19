@@ -41,6 +41,9 @@ build/
 target/
 *.log
 
+# ---- Capture storage (local until the deployment database lands) ----
+.captures/
+
 # ---- Editors and OS ----
 .idea/
 .vscode/

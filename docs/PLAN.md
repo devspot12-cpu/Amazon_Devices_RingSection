@@ -219,6 +219,7 @@ Eight Postgres tables (+ one optional). Keep **raw webhook payloads** so we can 
 | `devices` | id, farm_id, ring_device_id, name, zone_id, capabilities | From `GET /v1/devices` |
 | `zones` | id, farm_id, name, kind (coop, pasture, shed, gate), livestock | Drives rule severity |
 | `events` | id, device_id, ring_event_id (unique), class, occurred_at, raw_json | Unique id ⇒ idempotency |
+| `captures` | farm_id, event_id, ring_event_id, camera/zone, captured_at, content_type, image_bytes | Event snapshot and metadata stored together in PostgreSQL |
 | `detections` | id, event_id, species, confidence, frame_url, status | status: pending/done/fallback |
 | `rules` | id, farm_id, zone_kind, species, time_window, severity, enabled | User-editable |
 | `alerts` | id, detection_id, severity, channel, sent_at, acked_at | Escalation state |

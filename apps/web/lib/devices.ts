@@ -85,6 +85,33 @@ export async function syncDevices(
   return { farmId: options.farmId, synced: ringDevices.length };
 }
 
+/**
+ * Invoke Ring's `GET /v1/devices/{id}` for a device already synced to this
+ * farm. The caller can expose the parsed device, but never the access token.
+ */
+export async function getDeviceDetails(
+  db: Db,
+  config: RingConfig,
+  options: { farmId: string; ringDeviceId: string; fetchImpl?: typeof fetch },
+) {
+  const knownDevice = await db
+    .select({ id: devices.id })
+    .from(devices)
+    .where(
+      and(
+        eq(devices.farmId, options.farmId),
+        eq(devices.ringDeviceId, options.ringDeviceId),
+      ),
+    )
+    .limit(1);
+  if (!knownDevice[0]) return null;
+
+  const { accessToken } = await ensureFreshAccessToken(db, config, options.farmId, {
+    fetchImpl: options.fetchImpl,
+  });
+  return createRingClient(config, options.fetchImpl).getDevice(accessToken, options.ringDeviceId);
+}
+
 export interface AssignZoneResult {
   deviceId: string;
   zoneId: string | null;

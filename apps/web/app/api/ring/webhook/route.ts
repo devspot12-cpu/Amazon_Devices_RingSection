@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (result.status === 200) {
     after(async () => {
       try {
-        await drainJobs(db, { handlers: createJobHandlers({ db }) });
+        await drainJobs(db, { handlers: createJobHandlers({ db, config }) });
       } catch (error) {
         console.error(
           JSON.stringify({

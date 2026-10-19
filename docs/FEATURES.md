@@ -104,8 +104,10 @@ OAuth server, and we store the tokens safely.
 4. A `403`/`416`/`425` produces a `fallback` detection, never an exception that drops the event.
 5. Fetch latency is measured and logged per event.
 
-**TypeScript notes.** Handles the `3xx` redirect explicitly; writes media to a local/S3 path;
-returns `{ bytes, contentType, mediaTimestamp, componentId }`.
+**TypeScript notes.** Handles the `3xx` redirect explicitly; event frames and capture metadata
+are persisted together in the PostgreSQL `captures` table; returns
+`{ bytes, contentType, mediaTimestamp, componentId }`. Until F5 is connected, candidate event
+captures remain marked as pending identification.
 
 ---
 

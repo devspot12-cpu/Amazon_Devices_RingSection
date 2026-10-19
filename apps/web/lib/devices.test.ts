@@ -6,7 +6,7 @@ import { encryptToken, parseTokenEncKey } from '@predator-guard/ring';
 import { createFakeRing, type FakeRing } from '@predator-guard/sim';
 
 import { loadConfig } from './config';
-import { assignDeviceZone, syncDevices } from './devices';
+import { assignDeviceZone, getDeviceDetails, syncDevices } from './devices';
 import { createFarm, ensureFarm } from './farms';
 import { RelinkRequiredError } from './ring';
 
@@ -156,6 +156,84 @@ describe('syncDevices', () => {
     await expect(syncDevices(db, config, { farmId: farm.id })).rejects.toBeInstanceOf(
       RelinkRequiredError,
     );
+  });
+});
+
+describe('getDeviceDetails', () => {
+  it('invokes the Ring device endpoint for a synced camera and returns parsed details', async () => {
+    const accountId = 'details-account-1';
+    const fake = createFakeRing({
+      accounts: [
+        {
+          accountId,
+          name: 'Details Farmer',
+          email: 'details@example.test',
+          devices: [
+            {
+              ringDeviceId: 'details-cam-1',
+              name: 'Details camera',
+              deviceType: 'camera',
+              online: true,
+              e2ee: false,
+              capabilities: { motion_detection: true },
+              configurations: {},
+            },
+          ],
+        },
+      ],
+    });
+    const farmId = await linkedFarm(fake, accountId);
+    await syncDevices(db, config, { farmId, fetchImpl: asFetch(fake) });
+
+    const requestedUrls: string[] = [];
+    const fetchImpl: typeof fetch = async (input) => {
+      requestedUrls.push(String(input));
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 'details-cam-1',
+            type: 'devices',
+            attributes: { name: 'Details camera', device_type: 'camera' },
+            relationships: {
+              status: { data: { id: 'status-1', type: 'device-status' } },
+              capabilities: { data: { id: 'capabilities-1', type: 'device-capabilities' } },
+            },
+          },
+          included: [
+            { id: 'status-1', type: 'device-status', attributes: { online: true } },
+            {
+              id: 'capabilities-1',
+              type: 'device-capabilities',
+              attributes: { motion_detection: true },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    };
+    const details = await getDeviceDetails(db, config, {
+      farmId,
+      ringDeviceId: 'details-cam-1',
+      fetchImpl,
+    });
+
+    expect(details).toMatchObject({
+      ringDeviceId: 'details-cam-1',
+      name: 'Details camera',
+      online: true,
+      capabilities: { motion_detection: true },
+    });
+    expect(requestedUrls).toHaveLength(1);
+    expect(requestedUrls[0]).toContain('/v1/devices/details-cam-1?include=');
+    expect(JSON.stringify(details)).not.toContain(fake.issueAccessToken(accountId));
+    await expect(
+      getDeviceDetails(db, config, {
+        farmId,
+        ringDeviceId: 'not-synced',
+        fetchImpl,
+      }),
+    ).resolves.toBeNull();
+    expect(requestedUrls).toHaveLength(1);
   });
 });
 

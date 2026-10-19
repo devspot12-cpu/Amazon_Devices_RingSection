@@ -1,7 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq, ne } from 'drizzle-orm';
 
-import { createDb, devices, events, farms, jobs, ringTokens, type Db } from '@predator-guard/db';
+import {
+  captures,
+  createDb,
+  detections,
+  devices,
+  events,
+  farms,
+  jobs,
+  ringTokens,
+  type Db,
+} from '@predator-guard/db';
 import {
   encryptToken,
   parseTokenEncKey,
@@ -71,6 +81,11 @@ describe('webhook intake - the M1 gate', () => {
       name: 'Gate Farm',
       ownerEmail: 'gate@example.test',
       ringAccountId: SIM_ACCOUNT_ID,
+    });
+    await db.insert(devices).values({
+      farmId: farm.id,
+      ringDeviceId: SIM_DEVICES.coop,
+      name: 'Coop camera',
     });
     const built = buildMotionWebhook({
       accountId: SIM_ACCOUNT_ID,
@@ -218,26 +233,71 @@ describe('webhook intake - the M1 gate', () => {
   });
 
   it('drains queued work out of band: process_event completes the job', async () => {
+    const farm = await createFarm(db, {
+      name: 'Capture Farm',
+      ownerEmail: 'capture@example.test',
+      ringAccountId: 'sim-account-capture',
+    });
+    await db.insert(devices).values({
+      farmId: farm.id,
+      ringDeviceId: SIM_DEVICES.shed,
+      name: 'Shed camera',
+    });
     await send(
       buildMotionWebhook({
-        accountId: SIM_ACCOUNT_ID,
+        accountId: 'sim-account-capture',
         deviceId: SIM_DEVICES.shed,
         subType: 'motion',
-        eventId: 'drain-evt-1',
-        requestId: 'drain-req-1',
+        eventId: 'drain-evt-capture',
+        requestId: 'drain-req-capture',
       }),
     );
 
-    const processed = await drainJobs(db, { handlers: createJobHandlers({ db }) });
+    const processed = await drainJobs(db, {
+      handlers: createJobHandlers({
+        db,
+        config,
+        fetchSnapshot: async () => ({
+          bytes: new Uint8Array([0xff, 0xd8, 0xff]),
+          contentType: 'image/jpeg',
+          capturedAt: null,
+          origin: 'recording',
+          requestId: null,
+        }),
+      }),
+    });
 
     expect(processed).toBeGreaterThanOrEqual(1);
-    const pending = await db.select().from(jobs).where(eq(jobs.status, 'pending'));
-    expect(pending).toHaveLength(0);
+    const pendingJobs = await db.select().from(jobs).where(eq(jobs.status, 'pending'));
+    expect(pendingJobs).toHaveLength(0);
     const done = await db
       .select()
       .from(jobs)
       .where(and(eq(jobs.kind, PROCESS_EVENT_JOB), eq(jobs.status, 'done')));
     expect(done.length).toBeGreaterThanOrEqual(1);
+    const event = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.ringEventId, 'drain-evt-capture'));
+    const saved = await db
+      .select()
+      .from(captures)
+      .where(eq(captures.ringEventId, 'drain-evt-capture'));
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({
+      farmId: farm.id,
+      ringDeviceId: SIM_DEVICES.shed,
+      deviceName: 'Shed camera',
+      zoneKind: null,
+      source: 'event:drain-evt-capture',
+      contentType: 'image/jpeg',
+    });
+    const detectionRows = await db
+      .select()
+      .from(detections)
+      .where(eq(detections.eventId, event[0]!.id));
+    expect(detectionRows).toHaveLength(1);
+    expect(detectionRows[0]).toMatchObject({ species: 'unknown', status: 'pending' });
   });
 });
 

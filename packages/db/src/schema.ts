@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -22,9 +23,8 @@ import {
 /**
  * `@predator-guard/db` - the Postgres data model (PLAN.md S6).
  *
- * Ten tables: the eight from the build plan, the optional `ignore_list` for the
- * "our own dog" feature, and `jobs` - the queue that lets the webhook handler
- * acknowledge Ring in milliseconds and do the expensive work out of band.
+ * The plan's core tables plus the optional `ignore_list`, `jobs` queue, and
+ * `captures` table for database-backed event images and camera metadata.
  *
  * Domain vocabularies (species, zone kinds, severities...) are imported from
  * `@predator-guard/ring` rather than re-declared, so a schema change and a
@@ -154,6 +154,33 @@ export const events = pgTable(
     uniqueIndex('events_ring_event_id_idx').on(table.ringEventId),
     uniqueIndex('events_ring_request_id_idx').on(table.ringRequestId),
     index('events_farm_occurred_idx').on(table.farmId, table.occurredAt),
+  ],
+);
+
+/** Captured Ring frame and its event/camera metadata, stored together in Postgres. */
+export const captures = pgTable(
+  'captures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    farmId: uuid('farm_id')
+      .notNull()
+      .references(() => farms.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'set null' }),
+    ringEventId: text('ring_event_id'),
+    ringDeviceId: text('ring_device_id').notNull(),
+    deviceName: text('device_name').notNull(),
+    zoneKind: text('zone_kind'),
+    source: text('source').notNull(),
+    capturedAt: timestamp('captured_at', tz).notNull(),
+    savedAt: timestamp('saved_at', tz).notNull().defaultNow(),
+    contentType: text('content_type').notNull(),
+    imageBytes: customType<{ data: Uint8Array; driverData: Uint8Array }>({
+      dataType: () => 'bytea',
+    })('image_bytes').notNull(),
+  },
+  (table) => [
+    uniqueIndex('captures_ring_event_id_idx').on(table.ringEventId),
+    index('captures_farm_captured_at_idx').on(table.farmId, table.capturedAt),
   ],
 );
 

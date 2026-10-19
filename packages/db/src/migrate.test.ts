@@ -12,6 +12,7 @@ import { events, farms, jobs } from './schema.js';
 
 const EXPECTED_TABLES = [
   'alerts',
+  'captures',
   'detections',
   'devices',
   'events',

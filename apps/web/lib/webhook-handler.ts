@@ -144,6 +144,7 @@ async function dispatch(
           eventId: row.id,
           ringEventId: event.eventId,
           subType: event.subType,
+          componentIds: event.componentIds,
         };
         await enqueueJob(db, PROCESS_EVENT_JOB, payload);
       }

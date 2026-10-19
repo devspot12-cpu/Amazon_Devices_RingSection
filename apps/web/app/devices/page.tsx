@@ -8,6 +8,7 @@ import { loadConfig } from '@/lib/config';
 import { getDb } from '@/lib/db';
 import { ensureFarm } from '@/lib/farms';
 
+import { DeviceDetails } from './device-details';
 import { SyncButton } from './sync-button';
 import { ZoneSelect } from './zone-select';
 
@@ -72,6 +73,7 @@ export default async function DevicesPage() {
               <th>Ring id</th>
               <th>Status</th>
               <th>Zone</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
@@ -90,6 +92,9 @@ export default async function DevicesPage() {
                     ringDeviceId={row.ringDeviceId}
                     current={(row.zoneKind as ZoneKind | null) ?? null}
                   />
+                </td>
+                <td>
+                  <DeviceDetails ringDeviceId={row.ringDeviceId} />
                 </td>
               </tr>
             ))}

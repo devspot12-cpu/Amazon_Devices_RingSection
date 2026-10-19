@@ -1,36 +1,9 @@
-:root {
-  color-scheme: light dark;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-}
-
-main {
-  margin: 0 auto;
-  max-width: 44rem;
-  padding: 4rem 1.25rem;
-}
-
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-/* For control labels the layout makes obvious but screen readers still need. */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; line-height: 1.5; }
+main { margin: 0 auto; max-width: 44rem; padding: 1.5rem 1rem 3rem; }
+img { max-width: 100%; }
+button, select { font: inherit; min-height: 2.5rem; }
+@media (min-width: 640px) { main { padding: 3rem 1.25rem; } }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

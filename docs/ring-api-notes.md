@@ -192,6 +192,10 @@ Other verified details:
   `X-Media-Origin: recording`.
 - The playground's live-view section starts a simulated session (`Package` / `Vehicle`
   / `Motion`) and the WHEP workflow is the documented path for viewing it.
+- `at_timestamp = now` on the playground device: the presigned GET answers **416**
+  (no frame); the newest event's own timestamp returns the JPEG, `X-Media-Timestamp`
+  matching that instant. "Live" frames therefore need an event-time fallback
+  (friction log row 27).
 
 ## Event History
 

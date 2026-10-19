@@ -86,6 +86,9 @@ export default async function HomePage() {
           <Link href="/devices">Cameras &amp; zones</Link>
         </li>
         <li>
+          <Link href="/live">Live watch &amp; captures</Link>
+        </li>
+        <li>
           Events API: <a href="/api/events">/api/events</a>
         </li>
         <li>

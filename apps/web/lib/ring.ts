@@ -37,6 +37,37 @@ export class RelinkRequiredError extends Error {
   }
 }
 
+/**
+ * Translate a Ring failure into the `{ status, body }` shape every route
+ * returns: "re-link the account" instead of a 500 (F1 criterion 7), an
+ * actionable "token expired" message for pasted playground tokens, and a
+ * plain 502 for everything else. Returns null for non-Ring errors -
+ * callers rethrow those.
+ */
+export function describeRingError(
+  error: unknown,
+  config: RingConfig,
+): { status: number; body: { error: string; detail: string } } | null {
+  if (error instanceof RelinkRequiredError) {
+    return { status: 409, body: { error: 'relink_required', detail: error.message } };
+  }
+  if (error instanceof RingApiError) {
+    if (error.status === 401) {
+      return {
+        status: 401,
+        body: {
+          error: 'ring_token_expired',
+          detail: config.ringAccessToken
+            ? 'Ring rejected RING_ACCESS_TOKEN (401). Playground tokens last ~30 minutes - generate a fresh one on the Ring playground and paste it into apps/web/.env.local.'
+            : 'Ring rejected the stored access token (401). Link the Ring account again.',
+        },
+      };
+    }
+    return { status: 502, body: { error: 'ring_error', detail: error.message } };
+  }
+  return null;
+}
+
 export function createRingClient(config: RingConfig, fetchImpl?: typeof fetch): RingClient {
   return new RingClient({
     clientId: config.clientId,
