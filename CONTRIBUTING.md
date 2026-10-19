@@ -95,65 +95,11 @@ Because this repo has a single collaborator (the owner), an admin can merge with
 approval satisfied by the ruleset's administrator bypass. If you add teammates,
 their PRs will need a genuine second-person approval.
 
-## Docker
-
-The image is built and pushed **only from `main`**, by the `Release` workflow —
-i.e. after a PR is merged. PRs run a build check without pushing, so a broken
-`Dockerfile` fails the PR rather than the release.
-
-The image published is:
-
-```
-<your-dockerhub-username>/aws-demo
-```
-
-Required repository secrets (Settings → Secrets and variables → Actions):
-
-| Secret | Value |
-|---|---|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username |
-| `DOCKERHUB_TOKEN` | A Docker Hub **access token**, not your password |
-
-The workflow also accepts `DOCKER_USERNAME` and `DOCKER_TOKEN` as fallbacks, so
-either spelling works. Use one username secret and one token secret.
-
-Create the token at https://hub.docker.com/settings/security. Use an access
-token rather than the account password: it can be scoped and revoked
-independently.
-
-Image tags produced:
-
-| Tag | Meaning |
-|---|---|
-| `latest` | The current tip of `main` |
-| `sha-<short>` | That exact commit — use this for reproducible deploys |
-
-### Running the image
-
-```bash
-docker run --rm -p 8080:8080 <your-dockerhub-username>/aws-demo:latest
-curl http://localhost:8080/health
-```
-
-### Note on the current contents
-
-`app.py` is a **placeholder service** (a tiny HTTP server answering `/` and
-`/health`). It exists so the pipeline is verifiable end to end — a merge to main
-produces a runnable image. Replace `app.py` with the real Ring service when that
-code lands; the workflow needs no change.
-
 ## Workflows
 
 | File | Trigger | What it does |
 |---|---|---|
-| `.github/workflows/ci.yml` | PRs into `main`; pushes to non-main branches | Guard, Python checks, Node checks, Docker build check (no push) |
-| `.github/workflows/release.yml` | Pushes to `main`; manual dispatch | Builds and pushes the image to Docker Hub |
+| `.github/workflows/ci.yml` | PRs into `main`; pushes to non-main branches | Guard (branch convention) + Node type-check and build |
 
-The `ci.yml` checks: `Test (Python)` byte-compiles the source and runs `ruff`/`pytest` when
-configured; `Test (Node)` runs lint, type-check and tests once a root `package.json` exists
-(and skips cleanly until then); `Docker build` builds the image without pushing. The guard
-job runs on pull requests only.
-
-The guard lives in `ci.yml` on purpose: one red check on the PR blocks the merge
-button. Splitting it into its own workflow would still work, but keeping the
-builds and the guard together means a single status to watch.
+The guard job runs on pull requests only. It lives in `ci.yml` on purpose: one red check on
+the PR blocks the merge button.

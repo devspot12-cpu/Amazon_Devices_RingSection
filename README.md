@@ -1,89 +1,124 @@
 # Predator Guard
 
-**For Amazon Ring cameras — know *what* animal it was, not just that something moved.**
+**Amazon Devices Hackathon — Ring category.** *(repo: `Amazon_Devices_RingSection`)*
 
-Ring already tells you *"animal detected"*. Predator Guard takes the photo from that moment and tells you the **type of animal, the camera/zone, and the time**:
+Predator Guard shows **whether the animal in front of a camera is dangerous** — and it says so
+on screen. You feed it a real video file or a snapshot (no Ring device API access needed); the
+AI model names the animal, gives an **Animal Score** (how sure it is, 0–100%), and the rules
+engine turns that into a **Danger Type** (CRITICAL / DANGER / WARNING / MONITOR) based on the
+zone the camera watches and the time of day. Every result is shown immediately **and saved to
+the Postgres history** in parallel, per camera.
 
-> **Animal: fox (about 91% sure) · Coop cam · captured 03:12**
-
-No new hardware. It works with the Ring cameras you already have.
-
-## Why this helps
-
-- **A fox is not a raccoon.** You see the animal type — `fox`, `coyote`, `raccoon`, `opossum`, `dog`, `deer`, or `unknown` — instead of guessing from a blurry alert.
-- **Your own dog looks different from a predator.** The result names the animal, so a quick glance tells you whether to act or ignore it.
-- **You know where and when.** Every result sits next to its photo, camera, zone (coop / pasture / shed / gate), and capture time.
-- **It does not burn API calls.** The animal check runs **once per saved capture only** — never on the auto-refreshing live view, and never twice for the same event.
-
-## How it works
-
-1. Your Ring camera detects motion and records the event.
-2. Predator Guard loads **one photo** from that moment (the event time, not a continuous stream).
-3. That single photo is sent for one identification check using your API key.
-4. You get a JSON result, and the same result is shown next to the photo in **Live watch**.
-
-```json
-{
-  "capture": { "capturedAt": "2026-10-19T03:12:00.000Z", "deviceName": "Coop cam", "zoneKind": "coop" },
-  "animal": { "species": "fox", "confidence": 0.91, "peopleOnly": false, "status": "done", "capturedAt": "2026-10-19T03:12:00.000Z" }
-}
-```
-
-If the check fails, the photo is still saved and you see a clear failure message — a capture is never lost because identification hiccuped.
-
-## Try the demo (no Ring camera needed)
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>, link the fake Ring account, sync cameras, assign zones, then open **Live watch**: **Capture now** for the current photo, or **Scan newest events** for the latest Ring event photo.
+Open <http://localhost:3000> and:
 
-## Use it with your real Ring camera
+1. **Add a camera** on the dashboard (name + zone: coop / pasture / feed shed / gate). Add as
+   many as you like — the demo is per camera.
+2. **Open the camera check** (`/video`), pick the camera, then either
+   * load a **video file** and press *Watch for animal* (a local browser detector spots the
+     first animal and captures that exact frame), or
+   * press *Identify current frame* at any moment, or
+   * upload a **snapshot** directly.
+3. The frame goes to the AI model and the answer appears at once: **Animal Score** and
+   **Danger Type**, with the captured frame — and the row lands in the history.
+4. Back on the dashboard, the **Danger feed** and **Animal types by camera** show what was
+   seen, when, and how dangerous it was.
 
-Create `apps/web/.env.local` (copy `.env.example`) and add only:
+### Configure the AI model
 
-```env
-RING_ACCESS_TOKEN=your-ring-token
-OPENCODE_API_KEY=your-opencode-key
+The demo needs one key (in `apps/web/.env.local`, never in git):
+
+```powershell
+Copy-Item .env.example apps\web\.env.local
+# then edit apps\web\.env.local:
+#   OPENROUTER_API_KEY=sk-or-...
 ```
 
-Then run `npm run dev`, sync your cameras, assign zones, and open **Live watch**.
+* **OpenRouter** is tried first (`OPENROUTER_VISION_MODEL`, default `openai/gpt-4o-mini`).
+* **AWS Bedrock** is the fallback when OpenRouter is not configured (`BEDROCK_MODEL_ID` +
+  standard AWS credentials).
+* With neither configured, videos and snapshots still play/capture, and the API answers 503
+  with setup instructions instead of failing silently.
 
-- Ring tokens expire — if photos stop loading, paste a fresh token and restart.
-- Cameras with end-to-end encryption (E2EE) cannot share photos, so they cannot be captured or checked.
-- Keep keys only in `.env.local`. Never put a real key in `.env.example` or any tracked file.
+### Database
 
-## What you will see
+Zero-config: no `DATABASE_URL` ⇒ embedded PGlite (real Postgres compiled to WASM), stored in
+`.pglite/`.
 
-| You see | It means |
+Real Postgres:
+
+```bash
+docker compose up -d db
+# then run with:
+#   DATABASE_URL=postgres://predator_guard:predator_guard@localhost:5432/predator_guard npm run dev
+```
+
+Two tables carry the demo: `cameras` (what the user registers) and `detections` (timestamp,
+animal type, animal score, danger type/score, per camera).
+
+## How it fits together
+
+| Piece | What it does |
 | --- | --- |
-| `Animal: fox · about 91% sure` | Identified — an estimate from one photo, not a guarantee |
-| `Identifying…` | Check in progress (can take up to 15 seconds) |
-| `Unknown animal — please look at the photo` | Photo was unclear; photo is still saved |
-| `Check failed — please look at the photo` | Key, model, or network problem; photo is still saved |
-| `People only in this photo` | No animal named for a people-only photo |
-| `Not checked yet` | No API key set, or this capture has no check yet |
+| `apps/web/app/video` | The demo surface: video / snapshot in, verdict on screen |
+| `apps/web/app/api/analyze` | One frame → AI model → danger evaluation → history row |
+| `apps/web/app/api/cameras` | Register / list / remove cameras |
+| `apps/web/lib/vision.ts` | Model chain: OpenRouter first, AWS Bedrock second |
+| `apps/web/lib/danger.ts` | Species + zone + time → Danger Type (uses the rules engine) |
+| `packages/rules` | The severity rules engine (species × zone × day/night) |
+| `packages/vision` | Classifier shapes + the OpenRouter and Bedrock adapters |
+| `packages/db` | Drizzle schema + embedded SQL migrations (PGlite or Postgres) |
 
-Always check the picture itself before acting.
+The Ring OAuth linking, webhook intake, simulator and device-sync pipeline were removed for
+this demo — the app is fed by real videos and snapshots instead.
 
-## Troubleshooting
+## Read this first
 
-| Problem | Fix |
+| Doc | What it is |
 | --- | --- |
-| No photo loads | Paste a fresh `RING_ACCESS_TOKEN`, then check the camera is online in Ring |
-| Always "Not checked yet" | Add `OPENCODE_API_KEY` to `apps/web/.env.local` and restart |
-| Always "Check failed" | Check the key is correct and `OPENCODE_VISION_MODEL` names a vision model your provider offers |
-| Result is `unknown` | Animal may be small/dark in that frame — capture again or check manually |
-| E2EE error | That camera blocks photo access; use a non-E2EE camera |
+| [`docs/PLAN.md`](docs/PLAN.md) | The full build plan — scope, architecture, data model, rules |
+| [`docs/FEATURES.md`](docs/FEATURES.md) | Feature list and milestones |
+| [`docs/ring-api-notes.md`](docs/ring-api-notes.md) | One-page distillation of the Ring Partner API (verified 2026-10-18) |
+| [`docs/FRICTION_LOG.md`](docs/FRICTION_LOG.md) | Every surprise, written in the moment |
 
-## Ready today / coming next
+## Contributing
 
-**Ready:** Ring linking & camera sync, zone mapping, live view, event photo captures, animal-type identification.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: branch as `dev/<name>`, open a
+PR into `main`, and CI (type-check + build) must be green.
 
-**Coming next:** danger scoring per zone/time, push/SMS escalation, weekly pattern summary.
 
-## For developers
+## Temporary free PostgreSQL setup (Neon)
 
-App: `apps/web` · Ring: `packages/ring` · Animal check: `packages/vision` · Data: `packages/db`. See `docs/PLAN.md`, `CONTRIBUTING.md`.
+The app can run locally with embedded PGlite, but Vercel serverless deployments should use a hosted PostgreSQL database. The free Neon plan is suitable for development/demo use:
+
+1. Create an account at [neon.tech](https://neon.tech/).
+2. Create a PostgreSQL project and copy the **pooled** connection string.
+3. Add `?sslmode=require` if it is not already present.
+4. For local development, put it in `apps/web/.env.local` (never commit this file):
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+PGLITE_DATA_DIR=.pglite
+```
+
+5. In Vercel, add the same value as a private `DATABASE_URL` environment variable for Preview and Production.
+6. Redeploy after changing environment variables.
+
+Do not put the real password in `README.md`, `.env.example`, or Git. Use `.env.example` only for variable names and placeholders. If `DATABASE_URL` is omitted locally, the app falls back to PGlite.
+
+### Vercel project settings
+
+For this monorepo use:
+
+- **Root Directory:** `apps/web`
+- **Framework:** Next.js
+- **Install Command:** `npm ci`
+- **Build Command:** `npm run build --workspace @predator-guard/web`
+
+The Ring simulator is enabled automatically in development when Ring credentials are absent. For real Ring API access, configure the Ring variables from `.env.example` in Vercel; do not use `RING_SIM=1` in production.

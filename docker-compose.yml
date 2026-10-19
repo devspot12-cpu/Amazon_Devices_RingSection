@@ -6,9 +6,6 @@
 #
 #   docker compose up -d db
 #   DATABASE_URL=postgres://predator_guard:predator_guard@localhost:5432/predator_guard npm run dev
-#
-# The web service itself stays on npm (the repo Dockerfile is still the
-# Python placeholder from the pipeline smoke test).
 
 services:
   db:

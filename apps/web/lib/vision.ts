@@ -1,32 +1,101 @@
-import { detections } from '@predator-guard/db';
-import type { Db } from '@predator-guard/db';
-import type { Classification } from '@predator-guard/vision';
-import { OpenCodeSpeciesClassifier } from '@predator-guard/vision/opencode';
+import type { Classification, FrameInput } from '@predator-guard/vision';
+import { BedrockSpeciesClassifier } from '@predator-guard/vision/bedrock';
+import { OpenRouterSpeciesClassifier } from '@predator-guard/vision/openrouter';
 
-/** Photo -> ONE OpenCode call -> JSON verdict. Never throws. */
-export interface AnimalVerdict extends Classification { capturedAt: string; reason?: string; }
-const FALLBACK_MODEL = 'opencode';
-export function openCodeClassifierFromProcessEnv(): OpenCodeSpeciesClassifier | null {
-  try {
-    const apiKey = process.env.OPENCODE_API_KEY?.trim(); if (!apiKey) return null;
-    return new OpenCodeSpeciesClassifier({ apiKey, model: process.env.OPENCODE_VISION_MODEL?.trim() || undefined, baseUrl: process.env.OPENCODE_BASE_URL?.trim() || undefined });
-  } catch (error) { console.warn(JSON.stringify({ stage: 'vision.config_invalid', error: error instanceof Error ? error.message : String(error) })); return null; }
+import { bedrockInvokeFromEnv } from './bedrock';
+import { loadConfig } from './config';
+
+/**
+ * Snapshot -> AI model -> one JSON verdict.
+ *
+ * Providers are tried in order: OpenRouter first, AWS Bedrock second. The
+ * first one that is configured and answers wins. Never throws: an
+ * identification failure comes back as a `fallback` verdict so the screen
+ * can still tell the user to check the frame themselves, and `null` means
+ * "no model is configured at all" (the route turns that into a 503 with
+ * setup instructions).
+ */
+
+export interface AnimalVerdict extends Classification {
+  reason?: string;
 }
-export async function identifyAnimal(input: { bytes: Uint8Array; contentType: 'image/jpeg' | 'image/png'; capturedAt: Date; eventId?: string; classifier?: OpenCodeSpeciesClassifier | null; }): Promise<AnimalVerdict | null> {
-  let classifier: OpenCodeSpeciesClassifier | null;
-  try { classifier = input.classifier === undefined ? openCodeClassifierFromProcessEnv() : input.classifier; } catch { classifier = null; }
-  if (!classifier) return null;
+
+interface Provider {
+  readonly modelId: string;
+  classify(frame: FrameInput): Promise<Classification>;
+}
+
+function openRouterProvider(): Provider | null {
+  const config = loadConfig();
+  if (!config.openRouterApiKey) return null;
   try {
-    const result = await classifier.classify({ bytes: input.bytes, contentType: input.contentType, eventId: input.eventId });
-    const confidence = Math.min(1, Math.max(0, Number.isFinite(result.confidence) ? result.confidence : 0));
-    console.info(JSON.stringify({ stage: 'vision.done', model: result.model, species: result.species, confidence, peopleOnly: result.peopleOnly }));
-    return { ...result, confidence, capturedAt: input.capturedAt.toISOString() };
+    return new OpenRouterSpeciesClassifier({
+      apiKey: config.openRouterApiKey,
+      model: config.openRouterModel,
+      baseUrl: config.openRouterBaseUrl,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(JSON.stringify({ stage: 'vision.fallback', model: classifier.modelId, error: message }));
-    return { species: 'unknown', confidence: 0, model: classifier.modelId || FALLBACK_MODEL, peopleOnly: false, status: 'fallback', reason: 'Animal check failed - photo saved, please check it manually.', capturedAt: input.capturedAt.toISOString() };
+    console.warn(
+      JSON.stringify({
+        stage: 'vision.openrouter_invalid',
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    return null;
   }
 }
-export async function saveAnimalVerdict(db: Db, eventId: string, captureId: string, verdict: AnimalVerdict): Promise<void> {
-  await db.insert(detections).values({ eventId, species: verdict.species, confidence: verdict.confidence, model: verdict.model, frameUrl: `/api/captures/image?id=${encodeURIComponent(captureId)}`, status: verdict.status }).onConflictDoUpdate({ target: detections.eventId, set: { species: verdict.species, confidence: verdict.confidence, model: verdict.model, frameUrl: `/api/captures/image?id=${encodeURIComponent(captureId)}`, status: verdict.status } });
+
+function bedrockProvider(): Provider | null {
+  const prepared = bedrockInvokeFromEnv();
+  if (!prepared) return null;
+  return new BedrockSpeciesClassifier(prepared.modelId, prepared.invoke);
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+/** Identify the animal in one frame. `null` = no model configured. */
+export async function classifyAnimal(input: {
+  bytes: Uint8Array;
+  contentType: 'image/jpeg' | 'image/png';
+}): Promise<AnimalVerdict | null> {
+  const frame: FrameInput = { bytes: input.bytes, contentType: input.contentType };
+  const providers: Provider[] = [openRouterProvider(), bedrockProvider()].filter(
+    (provider): provider is Provider => provider !== null,
+  );
+  if (providers.length === 0) return null;
+
+  for (const provider of providers) {
+    try {
+      const result = await provider.classify(frame);
+      const confidence = clamp01(result.confidence);
+      console.info(
+        JSON.stringify({
+          stage: 'vision.done',
+          model: result.model,
+          species: result.species,
+          confidence,
+          peopleOnly: result.peopleOnly,
+        }),
+      );
+      return { ...result, confidence };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        JSON.stringify({ stage: 'vision.provider_failed', model: provider.modelId, error: message }),
+      );
+    }
+  }
+
+  // Every configured provider failed - fail open so the frame is still shown.
+  return {
+    species: 'unknown',
+    confidence: 0,
+    model: providers.map((provider) => provider.modelId).join(' -> '),
+    peopleOnly: false,
+    status: 'fallback',
+    reason: 'Animal check failed - please review the frame yourself.',
+  };
 }

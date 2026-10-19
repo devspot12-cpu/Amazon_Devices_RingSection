@@ -6,7 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./bedrock": "./src/bedrock.ts",
-    "./opencode": "./src/opencode.ts"
+    "./openrouter": "./src/openrouter.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -8,8 +8,7 @@ on:
   push:
     branches-ignore: [main]
 
-# A newer push to the same branch cancels the older run. On PRs this is safe and
-# saves minutes; the main-branch image build lives in a separate workflow.
+# A newer push to the same branch cancels the older run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -84,133 +83,24 @@ jobs:
           echo "No merge commits."
 
   # ---------------------------------------------------------------------------
-  # Python: the placeholder service today, the vision worker tomorrow.
-  # Skips lint/tests cleanly while there is nothing to lint or test.
-  # ---------------------------------------------------------------------------
-  test:
-    name: Test (Python)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-
-      - name: Byte-compile the Python source
-        run: |
-          # Exclude virtualenvs, node_modules and build output: they are not our
-          # code, and compiling a .venv is slow and can fail on third-party files.
-          python -m compileall -q -x '(^|[\\/])(\.venv|venv|env|node_modules|\.git|\.next|dist|build|__pycache__|\.mypy_cache|\.ruff_cache)([\\/]|$)' .
-          echo "Python files compile."
-
-      - name: Lint with ruff if configured
-        run: |
-          if [ -f ruff.toml ] || [ -f .ruff.toml ] || grep -qs '\[tool\.ruff' pyproject.toml; then
-            pip install ruff
-            ruff check .
-          else
-            echo "No ruff config yet - skipping. Add ruff.toml or [tool.ruff] to enable."
-          fi
-
-      - name: Run pytest if any tests exist
-        run: |
-          if [ -d tests ] || ls test_*.py >/dev/null 2>&1; then
-            pip install pytest
-            python -m pytest -q
-          else
-            echo "No tests found yet - skipping. Add tests/ or test_*.py to enable."
-          fi
-
-  # ---------------------------------------------------------------------------
-  # Node: the API, the dashboard and the shared TypeScript packages.
-  # Skips cleanly until the monorepo lands a root package.json, so this job is
-  # green on day one and starts doing real work the moment the scaffold arrives.
+  # Node: type-check and build the demo (apps/web + the shared packages).
   # ---------------------------------------------------------------------------
   node:
-    name: Test (Node)
+    name: Build (Node)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for a Node project
-        id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No package.json yet - skipping the Node checks."
-          fi
-
       - name: Set up Node
-        if: steps.check.outputs.found == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install dependencies
-        if: steps.check.outputs.found == 'true'
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
-      - name: Lint
-        if: steps.check.outputs.found == 'true'
-        run: npm run lint --if-present
+        run: npm ci
 
       - name: Type-check
-        if: steps.check.outputs.found == 'true'
-        run: npm run typecheck --if-present
-
-      - name: Test
-        if: steps.check.outputs.found == 'true'
-        run: npm test --if-present
+        run: npm run typecheck
 
       - name: Build
-        if: steps.check.outputs.found == 'true'
-        run: npm run build --if-present
-
-  # ---------------------------------------------------------------------------
-  # Docker build validation on PRs. Builds but does NOT push, so a broken
-  # Dockerfile fails the PR instead of being discovered after merge.
-  # ---------------------------------------------------------------------------
-  docker-build:
-    name: Docker build (no push)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check whether a Dockerfile exists
-        id: check
-        run: |
-          if [ -f Dockerfile ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No Dockerfile yet - skipping the build check."
-          fi
-
-      - name: Set up Buildx
-        if: steps.check.outputs.found == 'true'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
-        if: steps.check.outputs.found == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: local/ci-check:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: npm run build

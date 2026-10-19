@@ -1,103 +1,204 @@
 import Link from 'next/link';
-import { desc, eq } from 'drizzle-orm';
 
-import { devices, events } from '@predator-guard/db';
-
-import { loadConfig } from '@/lib/config';
+import { getFarm, ensureFarm } from '@/lib/farm';
+import { listCameras } from '@/lib/cameras';
 import { getDb } from '@/lib/db';
-import { ensureFarm } from '@/lib/farms';
+import { listRecentDetections, speciesSummaryByCamera } from '@/lib/history';
+import { zoneLabel } from '@/lib/zones';
+import { regionLabel, regionWatchlist, REGIONS, DEFAULT_REGION } from '@predator-guard/rules';
 
-import { SimTools } from './sim-tools';
+import { CameraManager, type CameraItem } from './camera-manager';
 
 /**
  * Predator Guard dashboard.
  *
- * M1 is link & listen: this page shows the linking state, the camera count,
- * and the live event feed an accepted webhook lands in. The full timeline and
- * heatmap arrive with F8.
+ * The demo loop: feed a frame on /video, see the Animal Score and Danger
+ * Type on screen, and find the same result here afterwards - saved to the
+ * Postgres history, grouped per camera.
  */
 
 export const dynamic = 'force-dynamic';
 
+const BADGE_KINDS = ['critical', 'danger', 'warning', 'monitor', 'none'];
+
+function badgeClass(dangerType: string): string {
+  const slug = dangerType.toLowerCase();
+  return BADGE_KINDS.includes(slug) ? `badge badge-${slug}` : 'badge';
+}
+
+interface CameraSummary {
+  camera: CameraItem;
+  species: Array<{ species: string; count: number; worstDangerScore: number }>;
+}
+
 export default async function HomePage() {
   const db = await getDb();
-  const config = loadConfig();
-  const farm = await ensureFarm(db, config);
+  const farm = await ensureFarm(db);
+  const cameras = await listCameras(db);
+  const recent = await listRecentDetections(db, 20);
+  const summary = await speciesSummaryByCamera(db);
 
-  const deviceCount = farm
-    ? (await db.select({ id: devices.id }).from(devices).where(eq(devices.farmId, farm.id))).length
-    : 0;
-  const recent = await db
-    .select({
-      id: events.id,
-      eventType: events.eventType,
-      eventClass: events.eventClass,
-      ringDeviceId: events.ringDeviceId,
-      receivedAt: events.receivedAt,
-    })
-    .from(events)
-    .orderBy(desc(events.receivedAt))
-    .limit(5);
+  const summaries: CameraSummary[] = cameras.map((camera) => ({
+    camera: { id: camera.id, name: camera.name, zoneKind: camera.zoneKind },
+    species: summary
+      .filter((row) => row.cameraId === camera.id)
+      .map((row) => ({
+        species: row.species,
+        count: row.count,
+        worstDangerScore: row.worstDangerScore,
+      })),
+  }));
+
+  const trackedSpecies = new Set(summary.map((row) => row.species)).size;
+  const peakThreat = recent.reduce((max, row) => Math.max(max, row.dangerScore), 0);
+  const watchlist = regionWatchlist(farm.region);
 
   return (
-    <main>
-      <h1>Predator Guard</h1>
-      <p>A species-aware predator alarm built on the Ring Partner API.</p>
+    <main className="stack">
+      <header className="hero stack">
+        <div className="hero-top">
+          <div className="hero-copy">
+            <span className="eyebrow">Autonomous farm watch</span>
+            <h1>Predator Guard</h1>
+            <p>
+              Feed your own video or snapshot, pick the camera it belongs to, and the AI model names
+              the animal. You get an <strong>Animal Score</strong> and a <strong>Danger Type</strong>{' '}
+              on screen — saved to this camera&apos;s Postgres history in parallel.
+            </p>
+          </div>
+          <div className="stack-sm" style={{ alignItems: 'flex-start' }}>
+            <Link className="cta" href="/video">
+              Feed a frame →
+            </Link>
+            <Link className="cta" href="/check" style={{ background: 'linear-gradient(140deg,#38bdf8,#0ea5e9)' }}>
+              Quick check (no camera) →
+            </Link>
+          </div>
+        </div>
 
-      <h2>Ring account</h2>
-      {farm ? (
-        <p>
-          Linked to <strong>{farm.name}</strong> (Ring account <code>{farm.ringAccountId ?? '?'}</code>
-          ) · <Link href="/devices">{deviceCount} camera(s) — map zones</Link>
+        <div className="stat-row">
+          <div className="stat">
+            <div className="stat-value">{cameras.length}</div>
+            <div className="stat-label">Cameras</div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{recent.length}</div>
+            <div className="stat-label">Recent alerts</div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{trackedSpecies}</div>
+            <div className="stat-label">Species tracked</div>
+          </div>
+          <div className="stat">
+            <div className={`stat-value${peakThreat >= 60 ? ' is-alert' : ''}`}>
+              {peakThreat > 0 ? peakThreat : '—'}
+            </div>
+            <div className="stat-label">Peak threat</div>
+          </div>
+        </div>
+      </header>
+
+      <section className="stack">
+        <h2>Farm location &amp; predator profile</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Choose your US farm/homestead location. Each region tunes the danger rules to the
+          predators that actually live there (e.g. wolves are critical in the Mountain West, much
+          less so in many other regions).
         </p>
-      ) : (
-        <p>Not linked yet.</p>
-      )}
-      {config.isSim ? (
-        <>
-          <p>
-            Simulator mode: no Ring credentials are configured, so the flows below run against the
-            bundled fake Ring API at <code>/api/sim</code>.
+        <form className="row" action="/api/farm" method="post">
+          <label className="field" style={{ maxWidth: '320px' }}>
+            Farm location
+            <select name="region" defaultValue={farm.region ?? DEFAULT_REGION}>
+              {REGIONS.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label} — {r.states}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit">Save region</button>
+          <span className="muted">Current: {regionLabel(farm.region)}</span>
+        </form>
+        {watchlist.length > 0 && (
+          <div className="card stack-sm">
+            <strong>Predator watchlist for {regionLabel(farm.region)}</strong>
+            <ul className="chip-list">
+              {watchlist.map((row) => (
+                <li key={row.species}>
+                  {row.label}{' '}
+                  <span className="muted">· {row.threat === 'severe' ? 'severe' : row.threat === 'moderate' ? 'moderate' : 'rare'}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+
+      <section className="stack">
+        <h2>Cameras</h2>
+        <CameraManager cameras={cameras} />
+      </section>
+
+      <section className="stack">
+        <h2>Species by camera</h2>
+        {summaries.length === 0 ? (
+          <p className="muted">
+            No sightings yet. Add a camera and feed a frame to start building history.
           </p>
-          <SimTools />
-        </>
-      ) : (
-        <p>Start the linking flow from the Ring app to connect an account.</p>
-      )}
+        ) : (
+          <div className="camera-grid">
+            {summaries.map(({ camera, species }) => (
+              <div className="card stack-sm" key={camera.id}>
+                <div className="row" style={{ gap: '0.5rem' }}>
+                  <strong>{camera.name}</strong>
+                  <span className="badge badge-monitor">{zoneLabel(camera.zoneKind)}</span>
+                </div>
+                {species.length === 0 ? (
+                  <p className="muted" style={{ margin: 0 }}>
+                    No detections for this camera yet.
+                  </p>
+                ) : (
+                  <ul className="chip-list">
+                    {species.map((row) => (
+                      <li key={row.species}>
+                        {row.species} × {row.count}
+                        <span className="muted"> · max {row.worstDangerScore}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-      <h2>Recent events</h2>
-      {recent.length === 0 ? (
-        <p>No events yet. Accepted webhooks appear here immediately.</p>
-      ) : (
-        <ul>
-          {recent.map((event) => (
-            <li key={event.id}>
-              <code>{event.eventType}</code> ({event.eventClass}) from{' '}
-              <code>{event.ringDeviceId || 'unknown device'}</code> at{' '}
-              {event.receivedAt.toISOString()}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h2>Elsewhere</h2>
-      <ul>
-        <li>
-          <Link href="/devices">Cameras &amp; zones</Link>
-        </li>
-        <li>
-          <Link href="/live">Live watch &amp; captures</Link>
-        </li>
-        <li>
-          Events API: <a href="/api/events">/api/events</a>
-        </li>
-        <li>
-          Health check: <a href="/api/health">/api/health</a>
-        </li>
-        <li>
-          Features and milestones: <code>docs/FEATURES.md</code>
-        </li>
-      </ul>
+      <section className="stack">
+        <h2>Threat log</h2>
+        {recent.length === 0 ? (
+          <p className="muted">Nothing logged yet — the board is calm.</p>
+        ) : (
+          <ul className="feed">
+            {recent.map((row) => (
+              <li key={row.id}>
+                <span className={badgeClass(row.dangerType)}>{row.dangerType}</span>
+                <strong>{row.species}</strong>
+                <span className="muted">Animal Score {row.animalScore}%</span>
+                {row.source === 'manual' ? (
+                  <span className="muted">Manual check{row.region ? ` · ${regionLabel(row.region)}` : ''}</span>
+                ) : (
+                  <span className="muted">
+                    {row.cameraName ?? 'Camera'} · {zoneLabel(row.zoneKind ?? 'gate')}
+                  </span>
+                )}
+                <time className="muted" dateTime={row.capturedAt} style={{ marginLeft: 'auto' }}>
+                  {new Date(row.capturedAt).toLocaleString()}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

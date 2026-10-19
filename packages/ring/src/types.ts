@@ -16,6 +16,10 @@ export type Species = (typeof SPECIES)[number];
 export const SEVERITIES = ['high', 'medium', 'low', 'log'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
+/** Where a detection came from: a named camera, or a one-off manual upload. */
+export const DETECTION_SOURCES = ['camera', 'manual'] as const;
+export type DetectionSource = (typeof DETECTION_SOURCES)[number];
+
 export const ALERT_CHANNELS = ['push', 'sms', 'voice', 'console'] as const;
 export type AlertChannel = (typeof ALERT_CHANNELS)[number];
 

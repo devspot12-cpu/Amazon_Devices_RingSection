@@ -1,12 +1,8 @@
 /**
- * `@predator-guard/ring` - the typed Ring Partner API surface.
+ * `@predator-guard/ring` - the shared domain vocabulary for Predator Guard.
  *
- * This package owns everything that knows about Ring's shapes: the webhook envelope,
- * the domain vocabulary, and (as it lands) the typed HTTP client and the fake Ring
- * server used in tests and demos.
+ * The demo feeds its own snapshots and videos instead of calling Ring's
+ * device, webhook and OAuth endpoints, so everything I/O-shaped was removed
+ * and only the pure types remain (species, zone kinds, severities...).
  */
-export * from './client.js';
-export * from './signature.js';
-export * from './token-vault.js';
 export * from './types.js';
-export * from './webhook.js';

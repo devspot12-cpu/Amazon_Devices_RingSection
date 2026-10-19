@@ -1,5 +1,7 @@
 import type { Severity, Species, ZoneKind } from '@predator-guard/ring';
 
+export * from './regions.js';
+
 /**
  * `@predator-guard/rules` - the severity rules engine (FEATURES.md F6).
  *
