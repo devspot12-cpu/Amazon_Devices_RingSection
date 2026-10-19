@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 
-import { cameras, farmProfile, type Db } from '@predator-guard/db';
-import { DEFAULT_REGION, regionById, type RegionId } from '@predator-guard/rules';
+import { cameras, farmProfile, regionWatchlist, type Db } from '@predator-guard/db';
+import { DEFAULT_REGION, regionById, regionWatchlist as ruleWatchlist, type RegionId } from '@predator-guard/rules';
 import type { ZoneKind } from '@predator-guard/ring';
 
 /**
@@ -26,6 +26,19 @@ export const DEFAULT_CAMERAS: ReadonlyArray<{ name: string; zoneKind: ZoneKind }
   { name: 'Driveway cam', zoneKind: 'gate' },
 ];
 
+async function seedRegionWatchlist(db: Db, regionId: string): Promise<void> {
+  const entries = ruleWatchlist(regionId);
+  if (entries.length === 0) return;
+  await db
+    .insert(regionWatchlist)
+    .values(entries.map((entry) => ({ regionId, species: entry.species, threat: entry.threat, label: entry.label })))
+    .onConflictDoNothing();
+}
+
+export async function listFarmWatchlist(db: Db, regionId: string) {
+  return db.select().from(regionWatchlist).where(eq(regionWatchlist.regionId, regionId));
+}
+
 export async function getFarm(db: Db): Promise<Farm | null> {
   const rows = await db.select().from(farmProfile).where(eq(farmProfile.id, 'default')).limit(1);
   return rows[0] ?? null;
@@ -46,7 +59,10 @@ async function seedDefaultCameras(db: Db): Promise<void> {
  */
 export async function ensureFarm(db: Db): Promise<Farm> {
   const existing = await getFarm(db);
-  if (existing) return existing;
+  if (existing) {
+    await seedRegionWatchlist(db, existing.region);
+    return existing;
+  }
   const inserted = await db
     .insert(farmProfile)
     .values({ id: 'default', region: DEFAULT_REGION })
@@ -54,6 +70,7 @@ export async function ensureFarm(db: Db): Promise<Farm> {
     .returning();
   if (inserted.length > 0) {
     await seedDefaultCameras(db);
+    await seedRegionWatchlist(db, DEFAULT_REGION);
   }
   return (await getFarm(db)) ?? inserted[0]!;
 }
@@ -69,5 +86,6 @@ export async function setFarmRegion(db: Db, region: string): Promise<Farm> {
     .returning();
   const updated = rows[0];
   if (!updated) throw new Error('Farm profile update returned no row');
+  await seedRegionWatchlist(db, updated.region);
   return updated;
 }

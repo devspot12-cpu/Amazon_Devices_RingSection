@@ -85,6 +85,22 @@ export const MIGRATIONS: readonly Migration[] = [
   // The former captures migration was removed: it referenced the legacy farms/events
   // tables, which 0000_demo_init intentionally drops. Captures are not part of
   // the current schema; keeping that migration made every fresh Postgres boot fail.
+  {
+    id: '0003_region_watchlist',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS "region_watchlist" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "region_id" text NOT NULL,
+        "species" text NOT NULL,
+        "threat" text NOT NULL,
+        "label" text NOT NULL,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "region_watchlist_region_species_idx" ON "region_watchlist" ("region_id", "species")`,
+      `CREATE INDEX IF NOT EXISTS "region_watchlist_region_idx" ON "region_watchlist" ("region_id")`,
+    ],
+  },
+
 ];
 
 /** Normalise `execute()` results across the postgres-js and PGlite drivers. */

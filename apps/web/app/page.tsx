@@ -1,11 +1,11 @@
 import Link from 'next/link';
 
-import { getFarm, ensureFarm } from '@/lib/farm';
+import { getFarm, ensureFarm, listFarmWatchlist } from '@/lib/farm';
 import { listCameras } from '@/lib/cameras';
 import { getDb } from '@/lib/db';
 import { listRecentDetections, speciesSummaryByCamera } from '@/lib/history';
 import { zoneLabel } from '@/lib/zones';
-import { regionLabel, regionWatchlist, REGIONS, DEFAULT_REGION } from '@predator-guard/rules';
+import { regionLabel, REGIONS, DEFAULT_REGION } from '@predator-guard/rules';
 
 import { CameraManager, type CameraItem } from './camera-manager';
 
@@ -51,7 +51,7 @@ export default async function HomePage() {
 
   const trackedSpecies = new Set(summary.map((row) => row.species)).size;
   const peakThreat = recent.reduce((max, row) => Math.max(max, row.dangerScore), 0);
-  const watchlist = regionWatchlist(farm.region);
+  const watchlist = await listFarmWatchlist(db, farm.region);
 
   return (
     <main className="stack">

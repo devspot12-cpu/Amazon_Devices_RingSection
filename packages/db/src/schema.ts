@@ -61,6 +61,23 @@ export const cameras = pgTable(
 );
 
 /** One analysed frame: what was seen, how sure, how dangerous, when and where. */
+/** Region-specific predator watchlist displayed by the dashboard. */
+export const regionWatchlist = pgTable(
+  'region_watchlist',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    regionId: text('region_id').notNull(),
+    species: text('species').notNull(),
+    threat: text('threat').notNull(),
+    label: text('label').notNull(),
+    createdAt: timestamp('created_at', tz).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('region_watchlist_region_species_idx').on(table.regionId, table.species),
+    index('region_watchlist_region_idx').on(table.regionId),
+  ],
+);
+
 export const detections = pgTable(
   'detections',
   {
@@ -91,6 +108,7 @@ export const detections = pgTable(
   (table) => [index('detections_camera_captured_idx').on(table.cameraId, table.capturedAt)],
 );
 
+export type RegionWatchlist = typeof regionWatchlist.$inferSelect;
 export type Camera = typeof cameras.$inferSelect;
 export type Detection = typeof detections.$inferSelect;
 export type FarmProfile = typeof farmProfile.$inferSelect;

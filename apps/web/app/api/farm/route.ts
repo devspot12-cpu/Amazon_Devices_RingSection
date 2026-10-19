@@ -35,7 +35,11 @@ export async function GET(): Promise<Response> {
 /** Set the farm's US region (drives predator profiles). */
 export async function POST(request: Request): Promise<Response> {
   try {
-    const parsed = RegionBody.safeParse(await request.json().catch(() => null));
+    const contentType = request.headers.get('content-type') ?? '';
+    const input = contentType.includes('application/json')
+      ? await request.json().catch(() => null)
+      : Object.fromEntries((await request.formData()).entries());
+    const parsed = RegionBody.safeParse(input);
     if (!parsed.success) return Response.json({ error: 'Bad region request' }, { status: 400 });
     const regionId = parsed.data.region;
     if (!REGIONS.find((region) => region.id === regionId)) {
