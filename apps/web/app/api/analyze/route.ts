@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
         {
           error: 'model_not_configured',
           detail:
-            'No vision model is configured. Set OPENROUTER_API_KEY (recommended) or BEDROCK_MODEL_ID in apps/web/.env.local.',
+            'No vision model is configured. Set OPENROUTER_API_KEY in apps/web/.env.local.',
         },
         { status: 503 },
       );

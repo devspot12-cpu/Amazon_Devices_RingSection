@@ -1,19 +1,16 @@
 import type { Classification, FrameInput } from '@predator-guard/vision';
-import { BedrockSpeciesClassifier } from '@predator-guard/vision/bedrock';
 import { OpenRouterSpeciesClassifier } from '@predator-guard/vision/openrouter';
 
-import { bedrockInvokeFromEnv } from './bedrock';
 import { loadConfig } from './config';
 
 /**
  * Snapshot -> AI model -> one JSON verdict.
  *
- * Providers are tried in order: OpenRouter first, AWS Bedrock second. The
- * first one that is configured and answers wins. Never throws: an
- * identification failure comes back as a `fallback` verdict so the screen
- * can still tell the user to check the frame themselves, and `null` means
- * "no model is configured at all" (the route turns that into a 503 with
- * setup instructions).
+ * OpenRouter (MiniMax M3.1 Flash by default) is the only provider. Never
+ * throws: an identification failure comes back as a `fallback` verdict so
+ * the screen can still tell the user to check the frame themselves, and
+ * `null` means "no model is configured at all" (the route turns that into
+ * a 503 with setup instructions).
  */
 
 export interface AnimalVerdict extends Classification {
@@ -45,12 +42,6 @@ function openRouterProvider(): Provider | null {
   }
 }
 
-function bedrockProvider(): Provider | null {
-  const prepared = bedrockInvokeFromEnv();
-  if (!prepared) return null;
-  return new BedrockSpeciesClassifier(prepared.modelId, prepared.invoke);
-}
-
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
@@ -62,7 +53,7 @@ export async function classifyAnimal(input: {
   contentType: 'image/jpeg' | 'image/png';
 }): Promise<AnimalVerdict | null> {
   const frame: FrameInput = { bytes: input.bytes, contentType: input.contentType };
-  const providers: Provider[] = [openRouterProvider(), bedrockProvider()].filter(
+  const providers: Provider[] = [openRouterProvider()].filter(
     (provider): provider is Provider => provider !== null,
   );
   if (providers.length === 0) return null;
@@ -89,7 +80,7 @@ export async function classifyAnimal(input: {
     }
   }
 
-  // Every configured provider failed - fail open so the frame is still shown.
+  // The provider failed - fail open so the frame is still shown.
   return {
     species: 'unknown',
     confidence: 0,

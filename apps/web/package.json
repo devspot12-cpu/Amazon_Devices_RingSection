@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.1152.0",
     "@predator-guard/db": "*",
     "@predator-guard/ring": "*",
     "@predator-guard/rules": "*",

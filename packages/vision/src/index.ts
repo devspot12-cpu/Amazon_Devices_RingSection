@@ -2,8 +2,8 @@
  * `@predator-guard/vision` - species detection from a photo/frame (F5).
  *
  * The classifier implementations live next door (`./openrouter`,
- * `./bedrock`); this module owns the shared shapes they both satisfy, so
- * the app can chain providers without this package knowing about keys or
+ * `./species`); this module owns the shared shapes they both satisfy, so
+ * the app can use providers without this package knowing about keys or
  * networks.
  */
 

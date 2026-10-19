@@ -5,9 +5,14 @@ import type { FrameInput } from './index.js';
  * One call per captured frame - used first by the video dev flow
  * (`/video`, a stand-in for a Ring feed) and reusable by the Ring
  * capture pipeline, which already produces the same kind of frame.
+ *
+ * The default model is MiniMax M3.1 Flash (free tier). It is a mandatory
+ * reasoning model, so we ask for low effort and a generous token budget -
+ * otherwise the reasoning pass can consume the whole completion and leave
+ * no JSON behind.
  */
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-export const DEFAULT_OPENROUTER_VISION_MODEL = 'openai/gpt-4o-mini';
+export const DEFAULT_OPENROUTER_VISION_MODEL = 'minimax/minimax-m3.1-flash:free';
 
 export const OPENROUTER_SPECIES_PROMPT =
   'You are identifying an animal in a single camera screenshot. ' +
@@ -34,7 +39,14 @@ export interface OpenRouterClassifierOptions {
 }
 
 interface ChatCompletionBody {
-  choices?: Array<{ message?: { content?: unknown } }>;
+  choices?: Array<{
+    message?: {
+      content?: unknown;
+      reasoning?: unknown;
+      reasoning_details?: Array<{ text?: unknown; summary?: unknown }>;
+    };
+  }>;
+  error?: { message?: unknown };
 }
 
 function clampConfidence(value: unknown): number {
@@ -81,20 +93,52 @@ export function parseOpenRouterReply(text: string, modelId: string): OpenRouterC
   };
 }
 
-function replyText(body: unknown): string {
-  const choices = (body as ChatCompletionBody | null)?.choices;
-  const content = choices?.[0]?.message?.content;
-  if (typeof content === 'string') return content;
+function messageText(body: unknown): string {
+  const message = (body as ChatCompletionBody | null)?.choices?.[0]?.message;
+  const content = message?.content;
+  if (typeof content === 'string' && content.trim() !== '') return content;
   if (Array.isArray(content)) {
-    return content
+    const joined = content
       .map((part) =>
         typeof part === 'object' && part !== null && 'text' in part
           ? String((part as { text: unknown }).text ?? '')
           : '',
       )
       .join('');
+    if (joined.trim() !== '') return joined;
+  }
+  // Some reasoning models put the answer in the reasoning channel when the
+  // content channel is empty. Accept it as a last resort.
+  if (typeof message?.reasoning === 'string' && message.reasoning.trim() !== '') {
+    return message.reasoning;
+  }
+  if (Array.isArray(message?.reasoning_details)) {
+    const joined = message.reasoning_details
+      .map((part) => String(part?.text ?? part?.summary ?? ''))
+      .join('');
+    if (joined.trim() !== '') return joined;
   }
   throw new Error('OpenRouter reply contained no message content');
+}
+
+async function describeFailure(response: Response): Promise<string> {
+  const fallback = `HTTP ${response.status}`;
+  try {
+    const raw = await response.text();
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw) as ChatCompletionBody;
+      const message = parsed.error?.message;
+      if (typeof message === 'string' && message.trim() !== '') {
+        return `${fallback}: ${message}`;
+      }
+    } catch {
+      // Not JSON - fall through to the raw snippet.
+    }
+    return `${fallback}: ${raw.slice(0, 300)}`;
+  } catch {
+    return fallback;
+  }
 }
 
 export class OpenRouterSpeciesClassifier {
@@ -119,7 +163,8 @@ export class OpenRouterSpeciesClassifier {
     this.modelId = options.model || DEFAULT_OPENROUTER_VISION_MODEL;
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.fetchImpl = options.fetchImpl ?? fetch;
-    this.timeoutMs = options.timeoutMs ?? 15_000;
+    // Reasoning models can take a while on the free tier.
+    this.timeoutMs = options.timeoutMs ?? 60_000;
   }
 
   async classify(frame: FrameInput): Promise<OpenRouterClassification> {
@@ -145,13 +190,15 @@ export class OpenRouterSpeciesClassifier {
             ],
           },
         ],
-        max_tokens: 120,
+        max_tokens: 2_048,
         temperature: 0,
+        reasoning: { effort: 'low' },
+        response_format: { type: 'json_object' },
       }),
       signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!response.ok) {
-      throw new Error(`OpenRouter vision request failed (HTTP ${response.status})`);
+      throw new Error(`OpenRouter vision request failed (${await describeFailure(response)})`);
     }
     let body: unknown;
     try {
@@ -159,7 +206,7 @@ export class OpenRouterSpeciesClassifier {
     } catch {
       throw new Error('OpenRouter vision reply was not JSON');
     }
-    return parseOpenRouterReply(replyText(body), this.modelId);
+    return parseOpenRouterReply(messageText(body), this.modelId);
   }
 }
 

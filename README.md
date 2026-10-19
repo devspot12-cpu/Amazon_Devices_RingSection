@@ -40,11 +40,10 @@ Copy-Item .env.example apps\web\.env.local
 #   OPENROUTER_API_KEY=sk-or-...
 ```
 
-* **OpenRouter** is tried first (`OPENROUTER_VISION_MODEL`, default `openai/gpt-4o-mini`).
-* **AWS Bedrock** is the fallback when OpenRouter is not configured (`BEDROCK_MODEL_ID` +
-  standard AWS credentials).
-* With neither configured, videos and snapshots still play/capture, and the API answers 503
-  with setup instructions instead of failing silently.
+* **OpenRouter** is the classifier (`OPENROUTER_VISION_MODEL`, default
+  `minimax/minimax-m3.1-flash:free`).
+* Without `OPENROUTER_API_KEY`, videos and snapshots still play/capture, and the API answers
+  503 with setup instructions instead of failing silently.
 
 ### Database
 
@@ -69,10 +68,10 @@ animal type, animal score, danger type/score, per camera).
 | `apps/web/app/video` | The demo surface: video / snapshot in, verdict on screen |
 | `apps/web/app/api/analyze` | One frame → AI model → danger evaluation → history row |
 | `apps/web/app/api/cameras` | Register / list / remove cameras |
-| `apps/web/lib/vision.ts` | Model chain: OpenRouter first, AWS Bedrock second |
+| `apps/web/lib/vision.ts` | OpenRouter (MiniMax) classifier |
 | `apps/web/lib/danger.ts` | Species + zone + time → Danger Type (uses the rules engine) |
 | `packages/rules` | The severity rules engine (species × zone × day/night) |
-| `packages/vision` | Classifier shapes + the OpenRouter and Bedrock adapters |
+| `packages/vision` | Classifier shapes + the OpenRouter adapter |
 | `packages/db` | Drizzle schema + embedded SQL migrations (PGlite or Postgres) |
 
 The Ring OAuth linking, webhook intake, simulator and device-sync pipeline were removed for

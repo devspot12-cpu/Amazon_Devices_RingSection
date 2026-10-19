@@ -1,4 +1,4 @@
-import { SPECIES_PROMPT, parseBedrockReply } from './bedrock.js';
+import { SPECIES_PROMPT, parseSpeciesReply } from './species.js';
 import type { Classification, FrameInput, SpeciesClassifier } from './index.js';
 
 /** OpenCode adapter: one photo in, one JSON verdict out. One call per capture. */
@@ -28,7 +28,7 @@ export class OpenCodeSpeciesClassifier implements SpeciesClassifier {
     const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, { method: 'POST', headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' }, body: JSON.stringify({ model: this.modelId, messages: [{ role: 'user', content: [{ type: 'text', text: SPECIES_PROMPT }, { type: 'image_url', image_url: { url: `data:${frame.contentType};base64,${base64}` } }] }], max_tokens: 120, temperature: 0 }), signal: AbortSignal.timeout(this.timeoutMs) });
     if (!response.ok) throw new Error(`OpenCode vision request failed (HTTP ${response.status})`);
     let body: unknown; try { body = await response.json(); } catch { throw new Error('OpenCode vision reply was not JSON'); }
-    return parseBedrockReply(replyText(body), this.modelId);
+    return parseSpeciesReply(replyText(body), this.modelId);
   }
 }
 export function openCodeClassifierFromEnv(env: Record<string, string | undefined>): OpenCodeSpeciesClassifier {

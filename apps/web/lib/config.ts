@@ -2,9 +2,9 @@
  * Environment loading for the demo.
  *
  * Only two concerns read from env: where the database lives, and which
- * vision model identifies the animal (OpenRouter first, AWS Bedrock as the
- * fallback). Everything Ring-specific (OAuth, webhooks, HMAC, token vault,
- * simulator flags) left the codebase with the webhook pipeline.
+ * vision model identifies the animal (OpenRouter). Everything Ring-specific
+ * (OAuth, webhooks, HMAC, token vault, simulator flags) left the codebase
+ * with the webhook pipeline.
  */
 
 export interface AppConfig {
@@ -12,13 +12,10 @@ export interface AppConfig {
   databaseUrl: string | undefined;
   /** PGlite data directory; a path persists across restarts. */
   pgliteDataDir: string;
-  /** OpenRouter key - the primary classifier for the demo. */
+  /** OpenRouter key - the classifier for the demo. */
   openRouterApiKey: string | undefined;
   openRouterModel: string | undefined;
   openRouterBaseUrl: string | undefined;
-  /** AWS Bedrock fallback classifier (used when OpenRouter is not configured). */
-  bedrockModelId: string | undefined;
-  awsRegion: string | undefined;
 }
 
 function readEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
@@ -34,7 +31,5 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     openRouterApiKey: readEnv(env, 'OPENROUTER_API_KEY'),
     openRouterModel: readEnv(env, 'OPENROUTER_VISION_MODEL'),
     openRouterBaseUrl: readEnv(env, 'OPENROUTER_BASE_URL'),
-    bedrockModelId: readEnv(env, 'BEDROCK_MODEL_ID'),
-    awsRegion: readEnv(env, 'AWS_REGION') ?? readEnv(env, 'AWS_DEFAULT_REGION'),
   };
 }
