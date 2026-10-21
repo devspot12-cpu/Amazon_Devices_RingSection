@@ -84,8 +84,12 @@ export interface DetectionRow {
   capturedAt: string;
 }
 
-/** Newest detections first - the dashboard's threat log. */
-export async function listRecentDetections(db: Db, limit = 20): Promise<DetectionRow[]> {
+/** Newest detections first - the dashboard's threat log, one region only. */
+export async function listRecentDetections(
+  db: Db,
+  region: string,
+  limit = 20,
+): Promise<DetectionRow[]> {
   const rows = await db
     .select({
       id: detections.id,
@@ -106,6 +110,7 @@ export async function listRecentDetections(db: Db, limit = 20): Promise<Detectio
     })
     .from(detections)
     .leftJoin(cameras, eq(detections.cameraId, cameras.id))
+    .where(eq(detections.region, region))
     .orderBy(desc(detections.capturedAt))
     .limit(limit);
   return rows.map((row) => ({ ...row, capturedAt: toIsoString(row.capturedAt) }));
@@ -122,8 +127,8 @@ export interface CameraSpeciesRow {
   lastSeen: string;
 }
 
-/** Animal types per camera, most recently seen first (manual checks excluded). */
-export async function speciesSummaryByCamera(db: Db): Promise<CameraSpeciesRow[]> {
+/** Animal types per camera for one region, most recently seen first (manual checks excluded). */
+export async function speciesSummaryByCamera(db: Db, region: string): Promise<CameraSpeciesRow[]> {
   // Raw SQL aggregates are not run through Drizzle's column mapper, so the
   // driver decides the JS type: PGlite/postgres-js hand `max(captured_at)`
   // back as a string, hence the loose type and toIsoString() below.
@@ -147,6 +152,7 @@ export async function speciesSummaryByCamera(db: Db): Promise<CameraSpeciesRow[]
     })
     .from(detections)
     .innerJoin(cameras, eq(detections.cameraId, cameras.id))
+    .where(eq(detections.region, region))
     .groupBy(cameras.id, cameras.name, cameras.zoneKind, detections.species)
     .orderBy(desc(sql`max(${detections.capturedAt})`));
   return rows.map((row) => ({

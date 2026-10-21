@@ -7,12 +7,19 @@ import type { ZoneKind } from '@predator-guard/ring';
  * Camera registry: the user registers cameras in the app (name + zone)
  * instead of syncing them from Ring, so the demo needs no device API access.
  * Every detection is attributed to one of these cameras.
+ *
+ * Cameras belong to the farm region they were registered in, so the dashboard
+ * and the camera check only ever see the current region's cameras.
  */
 
 export type Camera = typeof cameras.$inferSelect;
 
-export async function listCameras(db: Db): Promise<Camera[]> {
-  return db.select().from(cameras).orderBy(asc(cameras.name));
+export async function listCameras(db: Db, region: string): Promise<Camera[]> {
+  return db
+    .select()
+    .from(cameras)
+    .where(eq(cameras.region, region))
+    .orderBy(asc(cameras.name));
 }
 
 export async function getCamera(db: Db, id: string): Promise<Camera | null> {
@@ -21,17 +28,21 @@ export async function getCamera(db: Db, id: string): Promise<Camera | null> {
 }
 
 /**
- * Create a camera. The name is unique: re-submitting an existing name moves
- * that camera to the new zone instead of duplicating it.
+ * Create a camera in one region. The name is unique per region: re-submitting
+ * an existing name moves that region's camera to the new zone instead of
+ * duplicating it.
  */
 export async function createCamera(
   db: Db,
-  input: { name: string; zoneKind: ZoneKind },
+  input: { name: string; zoneKind: ZoneKind; region: string },
 ): Promise<Camera> {
   const rows = await db
     .insert(cameras)
-    .values({ name: input.name, zoneKind: input.zoneKind })
-    .onConflictDoUpdate({ target: cameras.name, set: { zoneKind: input.zoneKind } })
+    .values({ name: input.name, zoneKind: input.zoneKind, region: input.region })
+    .onConflictDoUpdate({
+      target: [cameras.name, cameras.region],
+      set: { zoneKind: input.zoneKind },
+    })
     .returning();
   const created = rows[0];
   if (!created) throw new Error('Camera insert did not return a row');

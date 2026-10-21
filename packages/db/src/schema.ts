@@ -55,9 +55,14 @@ export const cameras = pgTable(
     name: text('name').notNull(),
     /** Drives the severity rules: coop / pasture / shed / gate. */
     zoneKind: text('zone_kind', { enum: ZONE_KINDS }).notNull().default('gate'),
+    /**
+     * The farm region this camera was registered in. The dashboard and the
+     * camera check only list cameras - and their history - for that region.
+     */
+    region: text('region').notNull().default('midwest'),
     createdAt: timestamp('created_at', tz).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex('cameras_name_idx').on(table.name)],
+  (table) => [uniqueIndex('cameras_name_region_idx').on(table.name, table.region)],
 );
 
 /** One analysed frame: what was seen, how sure, how dangerous, when and where. */

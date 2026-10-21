@@ -2,7 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { DEFAULT_REGION, regionById, regionTimeZone } from '@predator-guard/rules';
+
+import { getDb } from '@/lib/db';
+import { getFarm } from '@/lib/farm';
+
+import { RegionClock } from './region-clock';
+
 import './globals.css';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Predator Guard',
@@ -29,7 +38,18 @@ function ShieldIcon() {
   );
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // The clock follows the farm region the user saved in preferences. If the
+  // profile cannot be read, keep the shell (and the clock) usable anyway.
+  let region: string = DEFAULT_REGION;
+  try {
+    const db = await getDb();
+    const farm = await getFarm(db);
+    if (farm) region = farm.region;
+  } catch {
+    // Fall through to the default region.
+  }
+
   return (
     <html lang="en">
       <body>
@@ -49,7 +69,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/video">Camera check</Link>
               <Link href="/check">Quick check</Link>
             </nav>
-            <span className="live">LIVE</span>
+            <div className="live-cluster">
+              <span className="live">LIVE</span>
+              <RegionClock
+                timeZone={regionTimeZone(region)}
+                regionLabel={regionById(region)?.label ?? 'Farm'}
+              />
+            </div>
           </header>
           {children}
           <footer className="footer">

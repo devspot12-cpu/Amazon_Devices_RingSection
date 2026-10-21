@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getFarm } from '@/lib/farm';
+import { ensureFarm } from '@/lib/farm';
 import { getDb } from '@/lib/db';
 import { getCamera } from '@/lib/cameras';
 import { evaluateDanger, NO_DANGER } from '@/lib/danger';
@@ -59,8 +59,8 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const db = await getDb();
-    const farm = await getFarm(db);
-    const region = farm?.region ?? null;
+    const farm = await ensureFarm(db);
+    const region = farm.region;
 
     let camera: { id: string; name: string; zoneKind: string } | null = null;
     if (parsed.data.cameraId) {
@@ -68,6 +68,15 @@ export async function POST(request: Request): Promise<Response> {
       if (!found) {
         return Response.json(
           { error: 'camera_not_found', detail: 'Register this camera on the dashboard first.' },
+          { status: 404 },
+        );
+      }
+      if (found.region !== region) {
+        return Response.json(
+          {
+            error: 'camera_not_found',
+            detail: 'This camera belongs to a different region. Switch the farm region or pick a camera from the current region.',
+          },
           { status: 404 },
         );
       }

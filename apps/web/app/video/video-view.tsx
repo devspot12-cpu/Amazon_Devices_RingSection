@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 
+import { regionLabel } from '@predator-guard/rules';
+
 import { bestAnimal, formatTimeframe } from '@/lib/animal-filter';
 import { zoneLabel } from '@/lib/zones';
 
@@ -146,7 +148,9 @@ export function VideoView() {
     void (async () => {
       try {
         const response = await fetch('/api/cameras');
-        const body = (await response.json().catch(() => null)) as { cameras?: CameraOption[] } | null;
+        const body = (await response.json().catch(() => null)) as
+          | { cameras?: CameraOption[]; farm?: { region?: string } }
+          | null;
         if (cancelled) return;
         const list = Array.isArray(body?.cameras) ? body.cameras! : [];
         setCameras(list);
@@ -154,7 +158,12 @@ export function VideoView() {
           setCameraId(list[0]!.id);
           setStatus('Choose a video file or a snapshot to start.');
         } else {
-          setStatus('No cameras yet - add one on the dashboard first.');
+          const region = body?.farm?.region;
+          setStatus(
+            region
+              ? `No cameras in ${regionLabel(region)} yet - add one on the dashboard first.`
+              : 'No cameras yet - add one on the dashboard first.',
+          );
         }
       } catch {
         if (!cancelled) setStatus('Could not load cameras - is the server running?');

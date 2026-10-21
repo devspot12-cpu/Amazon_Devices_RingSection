@@ -5,7 +5,7 @@ import { SPECIES, type Species } from '@predator-guard/ring';
  * Shared species prompt + reply parser.
  *
  * Expected reply: {"species":"fox","confidence":0.91,"peopleOnly":false}
- * Both the OpenRouter and OpenCode adapters use this shape.
+ * The OpenRouter adapter uses this shape.
  */
 export const SPECIES_PROMPT =
   'You are the species stage of a farm predator alarm. Look at this Ring camera photo. ' +

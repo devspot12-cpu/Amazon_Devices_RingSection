@@ -34,6 +34,8 @@ export interface RegionInfo {
   label: string;
   /** Example states, so the picker maps to a real place. */
   states: string;
+  /** Representative IANA timezone, used by the header clock. */
+  timeZone: string;
   blurb: string;
   /** Canonical species key -> local threat. Keys must be canonical. */
   predators: Readonly<Record<string, LocalThreat>>;
@@ -44,6 +46,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'northeast',
     label: 'Northeast',
     states: 'NY · PA · New England',
+    timeZone: 'America/New_York',
     blurb: 'Mixed woodland and small family farms — coyotes, raccoons and black bears raid coops.',
     predators: {
       coyote: 'severe',
@@ -62,6 +65,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'southeast',
     label: 'Southeast',
     states: 'GA · TN · Carolinas · VA',
+    timeZone: 'America/New_York',
     blurb: 'Humid poultry country — coyotes, raccoons and feral hogs do the most damage.',
     predators: {
       coyote: 'severe',
@@ -81,6 +85,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'midwest',
     label: 'Midwest',
     states: 'IA · IL · OH · IN · MN · WI',
+    timeZone: 'America/Chicago',
     blurb: 'Row-crop and livestock country — coyotes, raccoons and red foxes are the nightly regulars.',
     predators: {
       coyote: 'severe',
@@ -98,6 +103,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'great-plains',
     label: 'Great Plains & Texas',
     states: 'TX · OK · KS · NE',
+    timeZone: 'America/Chicago',
     blurb: 'Open rangeland — coyotes and feral hogs are relentless, with big cats on the western edge.',
     predators: {
       coyote: 'severe',
@@ -114,6 +120,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'mountain-west',
     label: 'Mountain West',
     states: 'MT · WY · CO · ID · UT',
+    timeZone: 'America/Denver',
     blurb: 'Backcountry ranches — wolves, bears and mountain lions make every livestock sighting critical.',
     predators: {
       wolf: 'severe',
@@ -130,6 +137,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'pacific-northwest',
     label: 'Pacific Northwest',
     states: 'WA · OR',
+    timeZone: 'America/Los_Angeles',
     blurb: 'Wet forest and pasture — black bears and cougars are the headline threats.',
     predators: {
       bear: 'severe',
@@ -146,6 +154,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'southwest',
     label: 'Southwest & Desert',
     states: 'AZ · NM · NV',
+    timeZone: 'America/Phoenix',
     blurb: 'Arid ranch land — coyotes, big cats, bobcats, javelina and rattlesnakes.',
     predators: {
       coyote: 'severe',
@@ -162,6 +171,7 @@ export const REGIONS: readonly RegionInfo[] = [
     id: 'suburban',
     label: 'Suburban / Backyard',
     states: 'US homes & hobby farms',
+    timeZone: 'America/New_York',
     blurb: 'Neighborhood flocks — coyotes and raccoons are the classic backyard coop raiders.',
     predators: {
       coyote: 'severe',
@@ -186,6 +196,11 @@ export function regionById(id: string | null | undefined): RegionInfo | undefine
 
 export function regionLabel(id: string | null | undefined): string {
   return regionById(id)?.label ?? 'Unknown region';
+}
+
+/** IANA timezone for a region, falling back to the app's default region. */
+export function regionTimeZone(id: string | null | undefined): string {
+  return regionById(id)?.timeZone ?? regionById(DEFAULT_REGION)!.timeZone;
 }
 
 /** Predators that live in the wild and can threaten a farm. */

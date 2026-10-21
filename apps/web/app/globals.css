@@ -164,6 +164,13 @@ a:hover {
   border-color: var(--border);
 }
 
+.live-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
 .live {
   display: inline-flex;
   align-items: center;
@@ -173,6 +180,23 @@ a:hover {
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--emerald);
+}
+
+/* Region clock: same colour as its icon (both inherit `currentColor`). */
+.region-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--emerald);
+}
+
+.region-clock svg {
+  flex: none;
+  opacity: 0.9;
 }
 
 .live::before {
@@ -565,6 +589,48 @@ img {
   border-color: var(--border-strong);
 }
 
+/* Fixed-height scroll panels: long record lists scroll inside their section
+   instead of stretching the dashboard. `overscroll-behavior` keeps the page
+   from scrolling on once the inner list reaches its end. */
+
+.scroll-area {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+/* Roughly four camera rows, three threat-log rows. */
+.scroll-area--cameras {
+  max-height: 13rem;
+}
+
+.scroll-area--log {
+  max-height: 15.5rem;
+}
+
+.scroll-area--grid {
+  max-height: clamp(240px, 45vh, 440px);
+}
+
+.scroll-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-area::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--amber);
+}
+
 .chip-list {
   display: flex;
   flex-wrap: wrap;
@@ -581,6 +647,49 @@ img {
   font-size: 0.82rem;
   color: var(--ink);
   background: var(--surface);
+}
+
+/* Region watchlist scope switch + all-regions comparison */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tab {
+  min-height: 0;
+  padding: 0.32rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.tab[aria-pressed='true'] {
+  color: #1a1200;
+  border-color: transparent;
+  background: linear-gradient(140deg, var(--amber), var(--amber-2));
+}
+
+.tab[aria-pressed='true']:hover:not(:disabled) {
+  color: #1a1200;
+}
+
+.region-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.region-list > div {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.region-list > div:first-child {
+  padding-top: 0;
+  border-top: none;
 }
 
 .camera-grid {
@@ -737,7 +846,7 @@ img {
     font-size: 0.85rem;
   }
 
-  .live {
+  .live-cluster {
     display: none;
   }
 

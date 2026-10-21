@@ -5,9 +5,11 @@ import { listCameras } from '@/lib/cameras';
 import { getDb } from '@/lib/db';
 import { listRecentDetections, speciesSummaryByCamera } from '@/lib/history';
 import { zoneLabel } from '@/lib/zones';
-import { regionLabel, REGIONS, DEFAULT_REGION } from '@predator-guard/rules';
+import { regionLabel, REGIONS, DEFAULT_REGION, regionWatchlist as ruleWatchlist } from '@predator-guard/rules';
 
 import { CameraManager, type CameraItem } from './camera-manager';
+import { PredatorWatchlist } from './predator-watchlist';
+import { RegionForm } from './region-form';
 
 /**
  * Predator Guard dashboard.
@@ -34,9 +36,9 @@ interface CameraSummary {
 export default async function HomePage() {
   const db = await getDb();
   const farm = await ensureFarm(db);
-  const cameras = await listCameras(db);
-  const recent = await listRecentDetections(db, 20);
-  const summary = await speciesSummaryByCamera(db);
+  const cameras = await listCameras(db, farm.region);
+  const recent = await listRecentDetections(db, farm.region, 20);
+  const summary = await speciesSummaryByCamera(db, farm.region);
 
   const summaries: CameraSummary[] = cameras.map((camera) => ({
     camera: { id: camera.id, name: camera.name, zoneKind: camera.zoneKind },
@@ -105,98 +107,97 @@ export default async function HomePage() {
           predators that actually live there (e.g. wolves are critical in the Mountain West, much
           less so in many other regions).
         </p>
-        <form className="row" action="/api/farm" method="post">
-          <label className="field" style={{ maxWidth: '320px' }}>
-            Farm location
-            <select name="region" defaultValue={farm.region ?? DEFAULT_REGION}>
-              {REGIONS.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label} — {r.states}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit">Save region</button>
-          <span className="muted">Current: {regionLabel(farm.region)}</span>
-        </form>
-        {watchlist.length > 0 && (
-          <div className="card stack-sm">
-            <strong>Predator watchlist for {regionLabel(farm.region)}</strong>
-            <ul className="chip-list">
-              {watchlist.map((row) => (
-                <li key={row.species}>
-                  {row.label}{' '}
-                  <span className="muted">· {row.threat === 'severe' ? 'severe' : row.threat === 'moderate' ? 'moderate' : 'rare'}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <RegionForm
+          region={farm.region ?? DEFAULT_REGION}
+          regions={REGIONS.map((r) => ({ id: r.id, label: r.label, states: r.states }))}
+        />
+        <PredatorWatchlist
+          region={farm.region}
+          regionLabel={regionLabel(farm.region)}
+          entries={watchlist}
+          allRegions={REGIONS.map((region) => ({
+            id: region.id,
+            label: region.label,
+            states: region.states,
+            entries: ruleWatchlist(region.id),
+          }))}
+        />
       </section>
 
       <section className="stack">
-        <h2>Cameras</h2>
+        <h2>
+          Cameras <span className="muted">· {regionLabel(farm.region)}</span>
+        </h2>
         <CameraManager cameras={cameras} />
       </section>
 
       <section className="stack">
-        <h2>Species by camera</h2>
+        <h2>
+          Species by camera <span className="muted">· {regionLabel(farm.region)}</span>
+        </h2>
         {summaries.length === 0 ? (
           <p className="muted">
-            No sightings yet. Add a camera and feed a frame to start building history.
+            No sightings in {regionLabel(farm.region)} yet. Feed a frame to start building
+            history for this region.
           </p>
         ) : (
-          <div className="camera-grid">
-            {summaries.map(({ camera, species }) => (
-              <div className="card stack-sm" key={camera.id}>
-                <div className="row" style={{ gap: '0.5rem' }}>
-                  <strong>{camera.name}</strong>
-                  <span className="badge badge-monitor">{zoneLabel(camera.zoneKind)}</span>
+          <div className="scroll-area scroll-area--grid" tabIndex={0}>
+            <div className="camera-grid">
+              {summaries.map(({ camera, species }) => (
+                <div className="card stack-sm" key={camera.id}>
+                  <div className="row" style={{ gap: '0.5rem' }}>
+                    <strong>{camera.name}</strong>
+                    <span className="badge badge-monitor">{zoneLabel(camera.zoneKind)}</span>
+                  </div>
+                  {species.length === 0 ? (
+                    <p className="muted" style={{ margin: 0 }}>
+                      No detections for this camera yet.
+                    </p>
+                  ) : (
+                    <ul className="chip-list">
+                      {species.map((row) => (
+                        <li key={row.species}>
+                          {row.species} × {row.count}
+                          <span className="muted"> · max {row.worstDangerScore}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                {species.length === 0 ? (
-                  <p className="muted" style={{ margin: 0 }}>
-                    No detections for this camera yet.
-                  </p>
-                ) : (
-                  <ul className="chip-list">
-                    {species.map((row) => (
-                      <li key={row.species}>
-                        {row.species} × {row.count}
-                        <span className="muted"> · max {row.worstDangerScore}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </section>
 
       <section className="stack">
-        <h2>Threat log</h2>
+        <h2>
+          Threat log <span className="muted">· {regionLabel(farm.region)}</span>
+        </h2>
         {recent.length === 0 ? (
-          <p className="muted">Nothing logged yet — the board is calm.</p>
+          <p className="muted">Nothing logged in {regionLabel(farm.region)} yet — the board is calm.</p>
         ) : (
-          <ul className="feed">
-            {recent.map((row) => (
-              <li key={row.id}>
-                <span className={badgeClass(row.dangerType)}>{row.dangerType}</span>
-                <strong>{row.species}</strong>
-                <span className="muted">Animal Score {row.animalScore}%</span>
-                {row.source === 'manual' ? (
-                  <span className="muted">Manual check{row.region ? ` · ${regionLabel(row.region)}` : ''}</span>
-                ) : (
-                  <span className="muted">
-                    {row.cameraName ?? 'Camera'} · {zoneLabel(row.zoneKind ?? 'gate')}
-                  </span>
-                )}
-                <time className="muted" dateTime={row.capturedAt} style={{ marginLeft: 'auto' }}>
-                  {new Date(row.capturedAt).toLocaleString()}
-                </time>
-              </li>
-            ))}
-          </ul>
+          <div className="scroll-area scroll-area--log" tabIndex={0}>
+            <ul className="feed">
+              {recent.map((row) => (
+                <li key={row.id}>
+                  <span className={badgeClass(row.dangerType)}>{row.dangerType}</span>
+                  <strong>{row.species}</strong>
+                  <span className="muted">Animal Score {row.animalScore}%</span>
+                  {row.source === 'manual' ? (
+                    <span className="muted">Manual check{row.region ? ` · ${regionLabel(row.region)}` : ''}</span>
+                  ) : (
+                    <span className="muted">
+                      {row.cameraName ?? 'Camera'} · {zoneLabel(row.zoneKind ?? 'gate')}
+                    </span>
+                  )}
+                  <time className="muted" dateTime={row.capturedAt} style={{ marginLeft: 'auto' }}>
+                    {new Date(row.capturedAt).toLocaleString()}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
     </main>

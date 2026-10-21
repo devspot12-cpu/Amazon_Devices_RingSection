@@ -100,6 +100,27 @@ export const MIGRATIONS: readonly Migration[] = [
       `CREATE INDEX IF NOT EXISTS "region_watchlist_region_idx" ON "region_watchlist" ("region_id")`,
     ],
   },
+  {
+    id: '0004_camera_region',
+    statements: [
+      // Cameras and detection history are scoped to the farm region they were
+      // recorded in, so switching region shows that region's records only.
+      `ALTER TABLE "cameras" ADD COLUMN IF NOT EXISTS "region" text NOT NULL DEFAULT 'midwest'`,
+      // Existing cameras belong to whatever region the farm is in right now.
+      `UPDATE "cameras" SET "region" = farm_region.region
+        FROM (SELECT "region" FROM "farm_profile" WHERE "id" = 'default') AS farm_region
+        WHERE "cameras"."region" = 'midwest'`,
+      // Camera names are unique per region, not globally: every region can have
+      // its own "Coop cam".
+      `DROP INDEX IF EXISTS "cameras_name_idx"`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "cameras_name_region_idx" ON "cameras" ("name", "region")`,
+      // History recorded before region tagging inherits the farm's region, so
+      // no record disappears from every filtered view.
+      `UPDATE "detections" SET "region" = farm_region.region
+        FROM (SELECT "region" FROM "farm_profile" WHERE "id" = 'default') AS farm_region
+        WHERE "detections"."region" IS NULL`,
+    ],
+  },
 
 ];
 

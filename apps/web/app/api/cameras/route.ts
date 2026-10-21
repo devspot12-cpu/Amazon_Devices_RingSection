@@ -18,25 +18,28 @@ const DeleteQuery = z.object({
   id: z.string().uuid(),
 });
 
-/** List every camera on the farm (auto-provisions farm + default cameras). */
+/** List every camera for the farm's current region (auto-provisions farm + default cameras). */
 export async function GET(): Promise<Response> {
   try {
     const db = await getDb();
-    await ensureFarm(db);
-    return Response.json({ cameras: await listCameras(db) });
+    const farm = await ensureFarm(db);
+    return Response.json({
+      cameras: await listCameras(db, farm.region),
+      farm: { region: farm.region },
+    });
   } catch (err) {
     return jsonError(err);
   }
 }
 
-/** Create (or re-zone) one camera: { name, zoneKind }. */
+/** Create (or re-zone) one camera for the current region: { name, zoneKind }. */
 export async function POST(request: Request): Promise<Response> {
   try {
     const parsed = CreateBody.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json({ error: 'Bad camera request' }, { status: 400 });
     const db = await getDb();
-    await ensureFarm(db);
-    const camera = await createCamera(db, parsed.data);
+    const farm = await ensureFarm(db);
+    const camera = await createCamera(db, { ...parsed.data, region: farm.region });
     return Response.json({ camera }, { status: 201 });
   } catch (err) {
     return jsonError(err);

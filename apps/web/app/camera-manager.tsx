@@ -115,26 +115,28 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
 
       {cameras.length === 0 ? (
         <p className="muted">
-          No cameras yet. Add one - the zone decides how dangerous a sighting is (a fox in the coop
-          at night rates higher than the same fox at the gate).
+          No cameras in this region yet. Add one below - cameras and their history belong to the
+          region they were added in.
         </p>
       ) : (
-        <ul className="feed">
-          {cameras.map((camera) => (
-            <li key={camera.id}>
-              <strong>{camera.name}</strong>
-              <span className="muted">{zoneLabel(camera.zoneKind)}</span>
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => void removeCamera(camera.id)}
-                disabled={busy}
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="scroll-area scroll-area--cameras" tabIndex={0}>
+          <ul className="feed">
+            {cameras.map((camera) => (
+              <li key={camera.id}>
+                <strong>{camera.name}</strong>
+                <span className="muted">{zoneLabel(camera.zoneKind)}</span>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => void removeCamera(camera.id)}
+                  disabled={busy}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

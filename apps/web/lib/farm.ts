@@ -44,10 +44,10 @@ export async function getFarm(db: Db): Promise<Farm | null> {
   return rows[0] ?? null;
 }
 
-async function seedDefaultCameras(db: Db): Promise<void> {
+async function seedDefaultCameras(db: Db, region: string): Promise<void> {
   await db
     .insert(cameras)
-    .values(DEFAULT_CAMERAS.map((camera) => ({ ...camera })))
+    .values(DEFAULT_CAMERAS.map((camera) => ({ ...camera, region })))
     .onConflictDoNothing();
 }
 
@@ -69,7 +69,7 @@ export async function ensureFarm(db: Db): Promise<Farm> {
     .onConflictDoNothing()
     .returning();
   if (inserted.length > 0) {
-    await seedDefaultCameras(db);
+    await seedDefaultCameras(db, DEFAULT_REGION);
     await seedRegionWatchlist(db, DEFAULT_REGION);
   }
   return (await getFarm(db)) ?? inserted[0]!;
@@ -87,5 +87,9 @@ export async function setFarmRegion(db: Db, region: string): Promise<Farm> {
   const updated = rows[0];
   if (!updated) throw new Error('Farm profile update returned no row');
   await seedRegionWatchlist(db, updated.region);
+  // Each region is its own workspace: give a freshly selected region the
+  // standard camera set so its dashboard has somewhere to record detections.
+  // `onConflictDoNothing` keeps any cameras already registered there.
+  await seedDefaultCameras(db, updated.region);
   return updated;
 }
