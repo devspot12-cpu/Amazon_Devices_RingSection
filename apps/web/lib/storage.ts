@@ -21,6 +21,16 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 /** How long a presigned read link stays valid. */
 export const READ_URL_TTL_SECONDS = 300;
 
+/**
+ * The demo bucket. The name is not a secret, and a mangled dashboard value
+ * took the uploads down once already, so it has a default here. The endpoint
+ * (`AWS_ENDPOINT_URL_S3`) and the region (`AWS_REGION`) still come from the
+ * environment.
+ */
+const DEMO_BUCKET = 'aws-demo';
+
+const EDGE_QUOTES = /^['"`\u2018\u2019\u201c\u201d]+|['"`\u2018\u2019\u201c\u201d]+$/g;
+
 export interface StorageSettings {
   /** Custom endpoint (S3-compatible provider). Undefined = real AWS S3. */
   endpoint: string | undefined;
@@ -33,21 +43,39 @@ export interface StorageSettings {
 }
 
 function readEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
-  const value = env[name];
+  const raw = env[name];
+  if (!raw) return undefined;
+  // Values pasted from a .env line keep their quotes on Vercel, because dotenv
+  // strips them but the dashboard stores the text verbatim; a copy-paste can
+  // also drag in the variable name or a newline. None of these values may
+  // contain spaces, so the whitespace is dropped rather than trimmed.
+  let value = raw.replace(/\s+/g, '').replace(EDGE_QUOTES, '');
+  const prefix = `${name}=`;
+  if (value.toLowerCase().startsWith(prefix.toLowerCase())) {
+    value = value.slice(prefix.length).replace(EDGE_QUOTES, '');
+  }
+  return value !== '' ? value : undefined;
+}
+
+/** A parsed `https://host` endpoint, or undefined when the value is unusable. */
+function readEndpoint(env: NodeJS.ProcessEnv): string | undefined {
+  const value = readEnv(env, 'AWS_ENDPOINT_URL_S3') ?? readEnv(env, 'AWS_ENDPOINT_URL');
   if (!value) return undefined;
-  // A value pasted from a .env line keeps its quotes on Vercel (`"https://…"`),
-  // because dotenv strips them but the dashboard stores the text verbatim. The
-  // S3 client then answers `Invalid URL` on the first upload.
-  const unquoted = value.trim().replace(/^(['"])(.*)\1$/, '$2').trim();
-  return unquoted !== '' ? unquoted : undefined;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    const url = new URL(withScheme);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The storage settings, read from the environment. */
 export function storageSettings(env: NodeJS.ProcessEnv = process.env): StorageSettings {
   return {
-    endpoint: readEnv(env, 'AWS_ENDPOINT_URL_S3') ?? readEnv(env, 'AWS_ENDPOINT_URL'),
+    endpoint: readEndpoint(env),
     region: readEnv(env, 'AWS_REGION') ?? 'us-east-1',
-    bucket: readEnv(env, 'AWS_S3_BUCKET') ?? 'assets',
+    bucket: readEnv(env, 'AWS_S3_BUCKET') ?? DEMO_BUCKET,
     accessKeyId: readEnv(env, 'AWS_ACCESS_KEY_ID'),
     secretAccessKey: readEnv(env, 'AWS_SECRET_ACCESS_KEY'),
     forcePathStyle: readEnv(env, 'AWS_S3_FORCE_PATH_STYLE') !== 'false',

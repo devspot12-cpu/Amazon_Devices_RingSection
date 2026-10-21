@@ -79,6 +79,8 @@ things we would tell Ring to fix.
 
 | 57 | 2026-10-22 | Deploy / env | Values copied from `.env.local` into the Vercel dashboard kept their quotes (`AWS_ENDPOINT_URL_S3="https://…"`), so the S3 client answered `Invalid URL` on every upload while the analysis itself still saved | The preview only said "the bucket rejected the upload", which reads like a wrong bucket or bad keys - the actual cause was one stray character in one variable | `readEnv` now strips the surrounding quotes (what dotenv already does), so a pasted `.env` line works either way; the preview itself was fixed by clearing the quotes in Vercel and redeploying | A hosting dashboard should normalise `.env` syntax on paste, or the app should name the variable that failed to parse |
 
+| 58 | 2026-10-22 | Deploy / env | The preview still answered `storage.put_capture` / `media.put_object` with `Invalid URL` after the quote fix, and the only copy of the effective value lived in the Vercel dashboard - it could not be read or checked from the repository | Two more deploy cycles were spent guessing between "wrong bucket", "wrong keys" and "wrong endpoint" for a string the app never printed | `readEnv` now removes quotes, all whitespace and a pasted `NAME=` prefix from every value, and the endpoint is re-parsed as a URL (scheme added when missing); the bucket name, which is not a secret and was the value most often mangled, now defaults to `aws-demo` in code instead of `assets`. Verified with a real PUT/DELETE against `aws-demo` using a deliberately mangled environment | A deployment should expose its effective (non-secret) configuration, so a bad string is one request away instead of one deploy away |
+
 ## Template
 
 ```
