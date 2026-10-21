@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 import { bestAnimal, formatTimeframe } from '@/lib/animal-filter';
+import { thumbnailFromCanvas } from '@/lib/thumbnail';
 import { regionLabel } from '@predator-guard/rules';
 
 /** Predictions as returned by @tensorflow-models/coco-ssd (kept structural to avoid a type-only import). */
@@ -87,7 +88,7 @@ function badgeClass(dangerType: string): string {
   return BADGE_KINDS.includes(slug) ? `badge badge-${slug}` : 'badge';
 }
 
-function frameFromImageFile(file: File): Promise<string> {
+function frameFromImageFile(file: File): Promise<{ dataUrl: string; thumbnail: string | null }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -104,7 +105,10 @@ function frameFromImageFile(file: File): Promise<string> {
         return;
       }
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
+      resolve({
+        dataUrl: canvas.toDataURL('image/jpeg', 0.92),
+        thumbnail: thumbnailFromCanvas(canvas),
+      });
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
@@ -148,7 +152,7 @@ export function QuickCheckView() {
   }, [videoUrl]);
 
   const analyze = useCallback(
-    async (dataUrl: string, capturedSeconds: number | null) => {
+    async (dataUrl: string, thumbnail: string | null, capturedSeconds: number | null) => {
       if (busyRef.current) return;
       busyRef.current = true;
       setFrame(dataUrl);
@@ -162,6 +166,7 @@ export function QuickCheckView() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             imageBase64: dataUrl,
+            thumbnailBase64: thumbnail ?? undefined,
             timeframeSeconds: capturedSeconds ?? undefined,
           }),
         });
@@ -199,9 +204,10 @@ export function QuickCheckView() {
     if (!context) return false;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const thumbnail = thumbnailFromCanvas(canvas);
     video.pause();
     setWatching(false);
-    await analyze(dataUrl, video.currentTime);
+    await analyze(dataUrl, thumbnail, video.currentTime);
     return true;
   }, [analyze]);
 
@@ -255,8 +261,8 @@ export function QuickCheckView() {
     setLocalDetector(null);
     setStatus('Reading the snapshot...');
     try {
-      const dataUrl = await frameFromImageFile(file);
-      await analyze(dataUrl, null);
+      const { dataUrl, thumbnail } = await frameFromImageFile(file);
+      await analyze(dataUrl, thumbnail, null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setFailure(message);

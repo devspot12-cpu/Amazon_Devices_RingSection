@@ -12,12 +12,31 @@ export const dynamic = 'force-dynamic';
 
 const Body = z.object({
   imageBase64: z.string().min(1),
+  /** Small JPEG of the same frame, kept with the detection for the hover preview. */
+  thumbnailBase64: z.string().max(400_000).optional(),
   cameraId: z.string().uuid().optional(),
   contentType: z.enum(['image/jpeg', 'image/png']).optional(),
   timeframeSeconds: z.number().min(0).optional(),
 });
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Normalise the small preview frame to a data URL, or drop it.
+ *
+ * The browser sends a JPEG data URL; a bare base64 payload is accepted too
+ * and treated as JPEG. Anything that is not image data is ignored rather
+ * than failing the analysis - the frame itself is what matters.
+ */
+function decodeThumbnail(value: string | undefined): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  const dataUrl = /^data:(image\/(?:jpeg|png));base64,(.*)$/i.exec(raw);
+  const base64 = dataUrl ? dataUrl[2]! : raw;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) return null;
+  const contentType = dataUrl ? dataUrl[1]!.toLowerCase() : 'image/jpeg';
+  return `data:${contentType};base64,${base64}`;
+}
 
 function decodeImage(
   body: z.infer<typeof Body>,
@@ -115,6 +134,7 @@ export async function POST(request: Request): Promise<Response> {
       peopleOnly: verdict.peopleOnly,
       status: verdict.status,
       capturedAt,
+      thumbnail: decodeThumbnail(parsed.data.thumbnailBase64),
     });
 
     return Response.json({

@@ -5,6 +5,8 @@ import { useState, type FormEvent } from 'react';
 
 import { ZONE_OPTIONS, zoneLabel } from '@/lib/zones';
 
+import { CaptureRow, type CapturePreview } from './capture-preview';
+
 /**
  * Camera registry UI: add a camera (name + zone) or remove one. The zone is
  * what the danger rules read - a fox in the coop at night rates higher than
@@ -15,6 +17,8 @@ export interface CameraItem {
   id: string;
   name: string;
   zoneKind: string;
+  /** Most recent capture of this camera - shown when the row is hovered. */
+  latest?: CapturePreview | null;
 }
 
 interface ErrorBody {
@@ -122,7 +126,7 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
         <div className="scroll-area scroll-area--cameras" tabIndex={0}>
           <ul className="feed">
             {cameras.map((camera) => (
-              <li key={camera.id}>
+              <CaptureRow key={camera.id} preview={camera.latest ?? null}>
                 <strong>{camera.name}</strong>
                 <span className="muted">{zoneLabel(camera.zoneKind)}</span>
                 <button
@@ -133,7 +137,7 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
                 >
                   Remove
                 </button>
-              </li>
+              </CaptureRow>
             ))}
           </ul>
         </div>

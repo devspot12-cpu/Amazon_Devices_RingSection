@@ -106,6 +106,12 @@ export const detections = pgTable(
     model: text('model'),
     peopleOnly: boolean('people_only').notNull().default(false),
     status: text('status', { enum: DETECTION_STATUSES }).notNull().default('done'),
+    /**
+     * Small JPEG of the analysed frame, as a data URL. Optional: older
+     * detections were recorded before the frame was kept, and the dashboard
+     * shows "no frame stored" for those.
+     */
+    thumbnail: text('thumbnail'),
     /** When the frame was captured. */
     capturedAt: timestamp('captured_at', tz).notNull(),
     createdAt: timestamp('created_at', tz).notNull().defaultNow(),

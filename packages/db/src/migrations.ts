@@ -121,6 +121,15 @@ export const MIGRATIONS: readonly Migration[] = [
         WHERE "detections"."region" IS NULL`,
     ],
   },
+  {
+    id: '0005_detection_thumbnail',
+    statements: [
+      // Keep a small JPEG of the analysed frame with the detection so the
+      // dashboard can show the captured picture on hover. Optional: rows
+      // recorded before this migration simply have no frame.
+      `ALTER TABLE "detections" ADD COLUMN IF NOT EXISTS "thumbnail" text`,
+    ],
+  },
 
 ];
 

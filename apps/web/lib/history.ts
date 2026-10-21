@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 
 import { cameras, detections, type Db } from '@predator-guard/db';
 import type { DetectionSource, DetectionStatus, Severity } from '@predator-guard/ring';
@@ -37,6 +37,8 @@ export interface SaveDetectionInput {
   source?: DetectionSource;
   /** Farm region active when the frame was judged. */
   region?: string | null;
+  /** Small JPEG data URL of the analysed frame. */
+  thumbnail?: string | null;
 }
 
 export async function saveDetection(
@@ -57,6 +59,7 @@ export async function saveDetection(
       model: input.model,
       peopleOnly: input.peopleOnly,
       status: input.status,
+      thumbnail: input.thumbnail ?? null,
       capturedAt: input.capturedAt,
     })
     .returning();
@@ -82,6 +85,8 @@ export interface DetectionRow {
   peopleOnly: boolean;
   status: string;
   capturedAt: string;
+  /** Small JPEG data URL of the analysed frame. */
+  thumbnail: string | null;
 }
 
 /** Newest detections first - the dashboard's threat log, one region only. */
@@ -107,6 +112,7 @@ export async function listRecentDetections(
       peopleOnly: detections.peopleOnly,
       status: detections.status,
       capturedAt: detections.capturedAt,
+      thumbnail: detections.thumbnail,
     })
     .from(detections)
     .leftJoin(cameras, eq(detections.cameraId, cameras.id))
@@ -114,6 +120,57 @@ export async function listRecentDetections(
     .orderBy(desc(detections.capturedAt))
     .limit(limit);
   return rows.map((row) => ({ ...row, capturedAt: toIsoString(row.capturedAt) }));
+}
+
+/** The most recent capture of one camera - what the hover preview shows. */
+export interface CameraCaptureRow {
+  cameraId: string;
+  species: string;
+  animalScore: number;
+  dangerType: string;
+  capturedAt: string;
+  thumbnail: string | null;
+}
+
+/**
+ * The newest detection per camera in one region.
+ *
+ * The correlated `max(captured_at)` keeps this to one row per camera
+ * without pulling the whole history into memory, and it works the same on
+ * PGlite and Postgres.
+ */
+export async function listLatestDetectionByCamera(
+  db: Db,
+  region: string,
+): Promise<CameraCaptureRow[]> {
+  const rows = await db
+    .select({
+      cameraId: detections.cameraId,
+      species: detections.species,
+      animalScore: detections.animalScore,
+      dangerType: detections.dangerType,
+      capturedAt: detections.capturedAt,
+      thumbnail: detections.thumbnail,
+    })
+    .from(detections)
+    .where(
+      and(
+        eq(detections.region, region),
+        isNotNull(detections.cameraId),
+        sql`${detections.capturedAt} = (SELECT max(d2."captured_at") FROM "detections" d2 WHERE d2."camera_id" = ${detections.cameraId})`,
+      ),
+    )
+    .orderBy(desc(detections.capturedAt));
+
+  // Two frames captured in the same instant would both match; keep the first.
+  const seen = new Set<string>();
+  const latest: CameraCaptureRow[] = [];
+  for (const row of rows) {
+    if (!row.cameraId || seen.has(row.cameraId)) continue;
+    seen.add(row.cameraId);
+    latest.push({ ...row, cameraId: row.cameraId, capturedAt: toIsoString(row.capturedAt) });
+  }
+  return latest;
 }
 
 /** One aggregated line: how often one animal type was seen on one camera. */

@@ -247,6 +247,12 @@ main > section::after {
   background: linear-gradient(90deg, transparent, var(--amber), var(--emerald), transparent);
 }
 
+/* Anchor targets (the stat cards link to them): keep the heading clear of
+   the sticky topbar when the page jumps to a section. */
+main > section[id] {
+  scroll-margin-top: 5rem;
+}
+
 /* ------------------------------------------------------------------- typo */
 
 h1,
@@ -316,6 +322,8 @@ h2::before {
 }
 
 .cta {
+  /* The halo colour; the sky variant overrides it. */
+  --cta-glow: var(--amber);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -325,14 +333,28 @@ h2::before {
   font-weight: 800;
   white-space: nowrap;
   background: linear-gradient(140deg, var(--amber), var(--amber-2));
-  box-shadow: 0 18px 36px -18px rgba(247, 168, 63, 0.95);
+  /* Lit rim + halo. The rim is a 1px box-shadow ring, so the pill keeps its
+     exact size and the glow never changes the layout. */
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.32),
+    0 0 20px -6px var(--cta-glow),
+    0 18px 36px -18px var(--cta-glow);
   transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
 .cta:hover {
   color: #1a1200;
   transform: translateY(-1px);
-  box-shadow: 0 22px 42px -18px rgba(247, 168, 63, 1);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.62),
+    0 0 32px -4px var(--cta-glow),
+    0 22px 42px -18px var(--cta-glow);
+}
+
+/* The second hero action: same pill, sky halo. */
+.cta--sky {
+  --cta-glow: var(--sky);
+  background: linear-gradient(140deg, #38bdf8, #0ea5e9);
 }
 
 .stat-row {
@@ -350,22 +372,41 @@ h2::before {
 }
 
 .stat-value {
+  display: block;
   font-size: 1.55rem;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 
-.stat-value.is-alert {
-  color: var(--amber);
-}
-
 .stat-label {
+  display: block;
   margin-top: 0.15rem;
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--ink-dim);
+}
+
+/* The stat cards are jump links to the section they summarize. */
+.stat--link {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.stat--link:hover,
+.stat--link:focus-visible {
+  color: var(--ink);
+  transform: translateY(-1px);
+  border-color: rgba(247, 168, 63, 0.55);
+  background: var(--surface-hover);
+}
+
+.stat--link:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
 }
 
 /* --------------------------------------------------------------- controls */
@@ -589,6 +630,54 @@ img {
   border-color: var(--border-strong);
 }
 
+/* Hover preview of the frame that was captured. Fixed positioning keeps it
+   out of the scroll panels around the lists, which would clip an
+   absolutely positioned card. */
+
+.capture-card {
+  position: fixed;
+  z-index: 40;
+  width: 240px;
+  padding: 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 13, 11, 0.96);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.capture-card.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.capture-card-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.capture-card-empty {
+  margin: 0;
+  padding: 1.4rem 0.5rem;
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.capture-card-meta {
+  display: grid;
+  gap: 0.1rem;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+}
+
 /* Fixed-height scroll panels: long record lists scroll inside their section
    instead of stretching the dashboard. `overscroll-behavior` keeps the page
    from scrolling on once the inner list reaches its end. */
@@ -601,7 +690,7 @@ img {
   scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
 
-/* Roughly four camera rows, three threat-log rows. */
+/* Roughly four camera rows, three threat-alert rows. */
 .scroll-area--cameras {
   max-height: 13rem;
 }

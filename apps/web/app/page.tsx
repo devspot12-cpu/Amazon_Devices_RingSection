@@ -3,11 +3,16 @@ import Link from 'next/link';
 import { getFarm, ensureFarm, listFarmWatchlist } from '@/lib/farm';
 import { listCameras } from '@/lib/cameras';
 import { getDb } from '@/lib/db';
-import { listRecentDetections, speciesSummaryByCamera } from '@/lib/history';
+import {
+  listLatestDetectionByCamera,
+  listRecentDetections,
+  speciesSummaryByCamera,
+} from '@/lib/history';
 import { zoneLabel } from '@/lib/zones';
 import { regionLabel, REGIONS, DEFAULT_REGION, regionWatchlist as ruleWatchlist } from '@predator-guard/rules';
 
 import { CameraManager, type CameraItem } from './camera-manager';
+import { CaptureRow } from './capture-preview';
 import { PredatorWatchlist } from './predator-watchlist';
 import { RegionForm } from './region-form';
 
@@ -39,6 +44,26 @@ export default async function HomePage() {
   const cameras = await listCameras(db, farm.region);
   const recent = await listRecentDetections(db, farm.region, 20);
   const summary = await speciesSummaryByCamera(db, farm.region);
+  const latestCaptures = await listLatestDetectionByCamera(db, farm.region);
+  const latestByCamera = new Map(latestCaptures.map((row) => [row.cameraId, row]));
+
+  const cameraItems: CameraItem[] = cameras.map((camera) => {
+    const latest = latestByCamera.get(camera.id);
+    return {
+      id: camera.id,
+      name: camera.name,
+      zoneKind: camera.zoneKind,
+      latest: latest
+        ? {
+            thumbnail: latest.thumbnail,
+            species: latest.species,
+            animalScore: latest.animalScore,
+            dangerType: latest.dangerType,
+            capturedAt: latest.capturedAt,
+          }
+        : { thumbnail: null, emptyNote: 'No captures yet for this camera' },
+    };
+  });
 
   const summaries: CameraSummary[] = cameras.map((camera) => ({
     camera: { id: camera.id, name: camera.name, zoneKind: camera.zoneKind },
@@ -51,8 +76,6 @@ export default async function HomePage() {
       })),
   }));
 
-  const trackedSpecies = new Set(summary.map((row) => row.species)).size;
-  const peakThreat = recent.reduce((max, row) => Math.max(max, row.dangerScore), 0);
   const watchlist = await listFarmWatchlist(db, farm.region);
 
   return (
@@ -72,31 +95,29 @@ export default async function HomePage() {
             <Link className="cta" href="/video">
               Feed a frame →
             </Link>
-            <Link className="cta" href="/check" style={{ background: 'linear-gradient(140deg,#38bdf8,#0ea5e9)' }}>
+            <Link className="cta cta--sky" href="/check">
               Quick check (no camera) →
             </Link>
           </div>
         </div>
 
         <div className="stat-row">
-          <div className="stat">
-            <div className="stat-value">{cameras.length}</div>
-            <div className="stat-label">Cameras</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{recent.length}</div>
-            <div className="stat-label">Recent alerts</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{trackedSpecies}</div>
-            <div className="stat-label">Species tracked</div>
-          </div>
-          <div className="stat">
-            <div className={`stat-value${peakThreat >= 60 ? ' is-alert' : ''}`}>
-              {peakThreat > 0 ? peakThreat : '—'}
-            </div>
-            <div className="stat-label">Peak threat</div>
-          </div>
+          <a
+            className="stat stat--link"
+            href="#cameras"
+            aria-label={`${cameras.length} cameras - jump to the camera list`}
+          >
+            <span className="stat-value">{cameras.length}</span>
+            <span className="stat-label">Cameras</span>
+          </a>
+          <a
+            className="stat stat--link"
+            href="#threat-alerts"
+            aria-label={`${recent.length} recent alerts - jump to the threat alerts`}
+          >
+            <span className="stat-value">{recent.length}</span>
+            <span className="stat-label">Recent alerts</span>
+          </a>
         </div>
       </header>
 
@@ -124,14 +145,14 @@ export default async function HomePage() {
         />
       </section>
 
-      <section className="stack">
+      <section className="stack" id="cameras">
         <h2>
           Cameras <span className="muted">· {regionLabel(farm.region)}</span>
         </h2>
-        <CameraManager cameras={cameras} />
+        <CameraManager cameras={cameraItems} />
       </section>
 
-      <section className="stack">
+      <section className="stack" id="species">
         <h2>
           Species by camera <span className="muted">· {regionLabel(farm.region)}</span>
         </h2>
@@ -170,9 +191,9 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="stack">
+      <section className="stack" id="threat-alerts">
         <h2>
-          Threat log <span className="muted">· {regionLabel(farm.region)}</span>
+          Threat alerts <span className="muted">· {regionLabel(farm.region)}</span>
         </h2>
         {recent.length === 0 ? (
           <p className="muted">Nothing logged in {regionLabel(farm.region)} yet — the board is calm.</p>
@@ -180,7 +201,16 @@ export default async function HomePage() {
           <div className="scroll-area scroll-area--log" tabIndex={0}>
             <ul className="feed">
               {recent.map((row) => (
-                <li key={row.id}>
+                <CaptureRow
+                  key={row.id}
+                  preview={{
+                    thumbnail: row.thumbnail,
+                    species: row.species,
+                    animalScore: row.animalScore,
+                    dangerType: row.dangerType,
+                    capturedAt: row.capturedAt,
+                  }}
+                >
                   <span className={badgeClass(row.dangerType)}>{row.dangerType}</span>
                   <strong>{row.species}</strong>
                   <span className="muted">Animal Score {row.animalScore}%</span>
@@ -194,7 +224,7 @@ export default async function HomePage() {
                   <time className="muted" dateTime={row.capturedAt} style={{ marginLeft: 'auto' }}>
                     {new Date(row.capturedAt).toLocaleString()}
                   </time>
-                </li>
+                </CaptureRow>
               ))}
             </ul>
           </div>
