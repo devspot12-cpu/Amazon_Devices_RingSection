@@ -75,6 +75,22 @@ presigned URL. Configure `AWS_ENDPOINT_URL_S3`, `AWS_S3_BUCKET`, `AWS_REGION`,
 already exist — the app never creates one. Without valid storage settings the analysis still
 runs, but the files are not kept.
 
+## For AI tools and agents
+
+The site describes itself to crawlers and agents:
+
+| URL | What it gives an agent |
+| --- | --- |
+| `/llms.txt` | Markdown map of the pages and every JSON endpoint, with request/response shapes ([llmstxt.org](https://llmstxt.org)) |
+| `/openapi.json` | OpenAPI 3.1 spec of the JSON API, for tool-calling agents |
+| `/robots.txt` | Allows all agents (except the signed media redirects); points at the sitemap |
+| `/sitemap.xml` | The pages to visit |
+| `<head>` | Per-page title/description, Open Graph, `schema.org` `WebApplication` JSON-LD, and `<link rel="alternate">` to `/llms.txt` and `/openapi.json` |
+
+Set `NEXT_PUBLIC_SITE_URL` so these links use the public domain (Vercel's production domain is
+used when it is unset). When an API route changes, update `app/llms.txt/route.ts` and
+`app/openapi.json/route.ts` with it.
+
 ## How it fits together
 
 | Piece | What it does |

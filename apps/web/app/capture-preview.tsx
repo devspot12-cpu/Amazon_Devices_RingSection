@@ -22,6 +22,8 @@ export interface CapturePreview {
   dangerType?: string;
   /** ISO timestamp of the capture. */
   capturedAt?: string;
+  /** Server-formatted capture time (farm time zone); wins over capturedAt so row and card agree. */
+  capturedLabel?: string;
   /** Text shown instead of the frame when there is nothing to show. */
   emptyNote?: string;
 }
@@ -94,6 +96,9 @@ export function CaptureRow({
 
   if (!preview) return <li>{children}</li>;
 
+  const when =
+    preview.capturedLabel ?? (preview.capturedAt ? new Date(preview.capturedAt).toLocaleString() : '');
+
   return (
     <li
       ref={rowRef}
@@ -121,7 +126,7 @@ export function CaptureRow({
               <img
                 className="capture-card-image"
                 src={frameSrc}
-                alt="Captured frame"
+                alt={preview.species ? `Captured frame: ${preview.species}` : 'Captured frame'}
                 decoding="async"
               />
             ) : null
@@ -137,7 +142,7 @@ export function CaptureRow({
             <span className="muted">Animal Score {preview.animalScore}%</span>
             <span className="muted">
               {preview.dangerType}
-              {preview.capturedAt ? ` · ${new Date(preview.capturedAt).toLocaleString()}` : ''}
+              {when ? ` · ${when}` : ''}
             </span>
           </div>
         ) : null}

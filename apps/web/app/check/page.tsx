@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { QuickCheckView } from './quick-check-view';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Quick check',
+  description:
+    'Upload a photo or video without picking a camera; the AI names the animal and the result is saved to history as a manual check.',
+};
 
 export default function QuickCheckPage() {
   return (

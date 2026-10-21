@@ -9,7 +9,13 @@ import {
   speciesSummaryByCamera,
 } from '@/lib/history';
 import { zoneLabel } from '@/lib/zones';
-import { regionLabel, REGIONS, DEFAULT_REGION, regionWatchlist as ruleWatchlist } from '@predator-guard/rules';
+import {
+  regionLabel,
+  regionTimeZone,
+  REGIONS,
+  DEFAULT_REGION,
+  regionWatchlist as ruleWatchlist,
+} from '@predator-guard/rules';
 
 import { CameraManager, type CameraItem } from './camera-manager';
 import { CaptureRow } from './capture-preview';
@@ -47,6 +53,19 @@ export default async function HomePage() {
   const latestCaptures = await listLatestDetectionByCamera(db, farm.region);
   const latestByCamera = new Map(latestCaptures.map((row) => [row.cameraId, row]));
 
+  // Farm-local time, the same zone as the header clock. Formatting here (not in
+  // the browser) keeps the row and its hover card on one clock.
+  const timeFormat = new Intl.DateTimeFormat('en-US', {
+    timeZone: regionTimeZone(farm.region),
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  const farmTime = (iso: string) => timeFormat.format(new Date(iso));
+
   const cameraItems: CameraItem[] = cameras.map((camera) => {
     const latest = latestByCamera.get(camera.id);
     return {
@@ -60,6 +79,7 @@ export default async function HomePage() {
             animalScore: latest.animalScore,
             dangerType: latest.dangerType,
             capturedAt: latest.capturedAt,
+            capturedLabel: farmTime(latest.capturedAt),
           }
         : { captureId: null, emptyNote: 'No captures yet for this camera' },
     };
@@ -179,7 +199,9 @@ export default async function HomePage() {
                       {species.map((row) => (
                         <li key={row.species}>
                           {row.species} × {row.count}
-                          <span className="muted"> · max {row.worstDangerScore}</span>
+                          <span className="muted" title="Highest danger score (0-100) seen for this animal">
+                            {' '}· peak danger {row.worstDangerScore}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -209,6 +231,7 @@ export default async function HomePage() {
                     animalScore: row.animalScore,
                     dangerType: row.dangerType,
                     capturedAt: row.capturedAt,
+                    capturedLabel: farmTime(row.capturedAt),
                   }}
                 >
                   <span className={badgeClass(row.dangerType)}>{row.dangerType}</span>
@@ -222,7 +245,7 @@ export default async function HomePage() {
                     </span>
                   )}
                   <time className="muted" dateTime={row.capturedAt} style={{ marginLeft: 'auto' }}>
-                    {new Date(row.capturedAt).toLocaleString()}
+                    {farmTime(row.capturedAt)}
                   </time>
                 </CaptureRow>
               ))}

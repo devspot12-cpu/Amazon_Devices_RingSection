@@ -63,12 +63,14 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
     }
   }
 
-  async function removeCamera(id: string) {
+  async function removeCamera(camera: CameraItem) {
     if (busy) return;
+    // The delete also drops the camera's whole history - one stray click must not do that.
+    if (!window.confirm(`Remove "${camera.name}" and all of its history? This cannot be undone.`)) return;
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/cameras?id=${encodeURIComponent(id)}`, {
+      const response = await fetch(`/api/cameras?id=${encodeURIComponent(camera.id)}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -119,7 +121,7 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
 
       {cameras.length === 0 ? (
         <p className="muted">
-          No cameras in this region yet. Add one below - cameras and their history belong to the
+          No cameras in this region yet. Add one above - cameras and their history belong to the
           region they were added in.
         </p>
       ) : (
@@ -132,8 +134,9 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
                 <button
                   type="button"
                   className="linkish"
-                  onClick={() => void removeCamera(camera.id)}
+                  onClick={() => void removeCamera(camera)}
                   disabled={busy}
+                  aria-label={`Remove camera ${camera.name}`}
                 >
                   Remove
                 </button>
