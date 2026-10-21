@@ -1,0 +1,30 @@
+/* Left sidebar: navigation + emergency contacts + nearest police. */
+.shell{display:grid;grid-template-columns:290px minmax(0,1fr);align-items:start;flex:1;width:100%;max-width:1400px;margin:0 auto}
+.content{min-width:0}.content main{max-width:none;margin:0}
+.sidebar{position:sticky;top:4.2rem;display:grid;gap:.85rem;max-height:calc(100vh - 4.2rem);overflow-y:auto;padding:.9rem .85rem 1rem 1rem;border-right:1px solid var(--border)}
+.sidenav{display:grid;gap:.35rem}.sidenav a{padding:.5rem .8rem;border:1px solid transparent;border-radius:var(--radius-sm);color:var(--ink-muted);font-weight:600}.sidenav a:hover{color:var(--ink);background:var(--surface);border-color:var(--border)}
+.sidebar-section{display:grid;gap:.45rem;padding-top:.75rem;border-top:1px solid var(--border)}.sidebar-heading{font-size:.72rem}.sidebar-note{margin:0;font-size:.78rem;line-height:1.4}
+.emergency-list{display:grid;gap:.5rem;margin:0;padding:0;list-style:none}
+.emergency-card{display:grid;gap:.2rem;padding:.55rem .7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--panel-2)}
+.emergency-card strong{font-size:.92rem;line-height:1.25}.emergency-card .muted{font-size:.78rem;line-height:1.35}
+.emergency-phone{font-weight:800;letter-spacing:.02em;line-height:1.3;color:var(--amber)}
+.emergency-actions{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.2rem}
+.sidebar .emergency-actions button,.sidebar .btn-call{min-height:1.9rem;padding:.28rem .7rem;font-size:.8rem;white-space:nowrap}
+.sidebar .field{gap:.25rem}.sidebar input{min-height:2.15rem;padding:.4rem .6rem;font-size:.88rem}
+.btn-call{display:inline-flex;align-items:center;min-height:2.1rem;padding:.35rem .95rem;border-radius:999px;color:#1a1200;font-size:.85rem;font-weight:800;background:linear-gradient(140deg,var(--amber),var(--amber-2))}.btn-call:hover{color:#1a1200}
+/* Short screens: drop the prose so the call/share actions stay above the fold. */
+@media(max-height:760px){.sidebar .sidebar-note{display:none}}
+/* Critter catch: sidebar toggle + full-screen roaming critter. */
+.critter-toggle{display:flex;align-items:center;gap:.45rem;width:100%;min-height:2.2rem;padding:.4rem .8rem;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;font-weight:700;color:var(--ink);background:var(--surface)}
+.critter-toggle[aria-pressed='true']{color:#1a1200;border-color:transparent;background:linear-gradient(140deg,var(--amber),var(--amber-2))}
+.critter-layer{position:fixed;inset:0;z-index:80;overflow:hidden;pointer-events:none}
+.critter{position:absolute;left:0;top:0;width:52px;height:52px;min-height:0;padding:0;border:0;border-radius:50%;background:none;cursor:pointer;pointer-events:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.65));transition:filter .12s ease;will-change:left,top}
+.critter:hover{filter:drop-shadow(0 0 12px rgba(247,168,63,.95)) drop-shadow(0 8px 10px rgba(0,0,0,.6))}
+.critter-emoji{display:block;font-size:38px;line-height:52px;text-align:center;pointer-events:none}
+.critter-pop{position:absolute;transform:translate(-50%,-50%);font-size:22px;font-weight:900;color:var(--amber);text-shadow:0 2px 14px rgba(0,0,0,.95);pointer-events:none;animation:critter-float .8s ease-out forwards}
+@keyframes critter-float{0%{opacity:1;transform:translate(-50%,-50%) scale(.6)}100%{opacity:0;transform:translate(-50%,-220%) scale(1.4)}}
+.critter-hud{position:fixed;right:16px;bottom:16px;display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem .35rem .75rem;border:1px solid rgba(247,168,63,.4);border-radius:999px;background:rgba(8,14,12,.9);box-shadow:0 12px 30px -12px rgba(0,0,0,.9);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);pointer-events:auto}
+.critter-hud b{font-size:1rem;letter-spacing:0;color:var(--emerald)}
+.critter-hud-close{display:grid;place-items:center;width:1.4rem;height:1.4rem;min-height:0;padding:0;border:1px solid var(--border-strong);border-radius:50%;background:var(--surface);color:var(--ink-muted);font-size:.8rem;line-height:1}
+.critter-hud-close:hover{color:#fff;border-color:rgba(247,168,63,.7)}
+@media(max-width:900px){.shell{grid-template-columns:minmax(0,1fr)}.sidebar{position:static;max-height:none;overflow:visible;border-right:none;border-bottom:1px solid var(--border)}.sidenav{display:flex;flex-wrap:wrap}}
