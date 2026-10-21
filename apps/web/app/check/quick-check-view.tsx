@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 import { bestAnimal, formatTimeframe } from '@/lib/animal-filter';
-import { thumbnailFromCanvas } from '@/lib/thumbnail';
+import { linkMedia, uploadMedia, type UploadedMedia } from '@/lib/upload-media';
 import { regionLabel } from '@predator-guard/rules';
 
 /** Predictions as returned by @tensorflow-models/coco-ssd (kept structural to avoid a type-only import). */
@@ -88,7 +88,7 @@ function badgeClass(dangerType: string): string {
   return BADGE_KINDS.includes(slug) ? `badge badge-${slug}` : 'badge';
 }
 
-function frameFromImageFile(file: File): Promise<{ dataUrl: string; thumbnail: string | null }> {
+function frameFromImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -105,10 +105,7 @@ function frameFromImageFile(file: File): Promise<{ dataUrl: string; thumbnail: s
         return;
       }
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      resolve({
-        dataUrl: canvas.toDataURL('image/jpeg', 0.92),
-        thumbnail: thumbnailFromCanvas(canvas),
-      });
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
@@ -121,6 +118,8 @@ function frameFromImageFile(file: File): Promise<{ dataUrl: string; thumbnail: s
 export function QuickCheckView() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const busyRef = useRef(false);
+  const uploadRef = useRef<Promise<UploadedMedia | null> | null>(null);
+  const uploadSeq = useRef(0);
 
   const [region, setRegion] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
@@ -131,6 +130,9 @@ export function QuickCheckView() {
   const [failure, setFailure] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<number | null>(null);
   const [localDetector, setLocalDetector] = useState<string | null>(null);
+  const [stored, setStored] = useState<UploadedMedia | null>(null);
+  const [storing, setStoring] = useState(false);
+  const [storeError, setStoreError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,8 +153,45 @@ export function QuickCheckView() {
     };
   }, [videoUrl]);
 
+  /**
+   * Upload the picked file as soon as it is chosen - it does not depend on the
+   * vision model answering. The promise is kept so the analysis can link the
+   * stored file to the detection row afterwards.
+   */
+  const startUpload = useCallback((file: File) => {
+    const seq = ++uploadSeq.current;
+    setStoring(true);
+    setStored(null);
+    setStoreError(null);
+    const task = uploadMedia(file)
+      .then((media) => {
+        if (seq === uploadSeq.current) setStored(media);
+        return media;
+      })
+      .catch((error) => {
+        if (seq === uploadSeq.current) {
+          setStoreError(error instanceof Error ? error.message : String(error));
+        }
+        return null;
+      })
+      .finally(() => {
+        if (seq === uploadSeq.current) setStoring(false);
+      });
+    uploadRef.current = task;
+  }, []);
+
+  const linkStoredMedia = useCallback(async (detectionId: string) => {
+    const media = await uploadRef.current;
+    if (!media) return;
+    try {
+      setStored(await linkMedia(media.id, detectionId));
+    } catch (error) {
+      setStoreError(error instanceof Error ? error.message : String(error));
+    }
+  }, []);
+
   const analyze = useCallback(
-    async (dataUrl: string, thumbnail: string | null, capturedSeconds: number | null) => {
+    async (dataUrl: string, capturedSeconds: number | null) => {
       if (busyRef.current) return;
       busyRef.current = true;
       setFrame(dataUrl);
@@ -166,7 +205,6 @@ export function QuickCheckView() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             imageBase64: dataUrl,
-            thumbnailBase64: thumbnail ?? undefined,
             timeframeSeconds: capturedSeconds ?? undefined,
           }),
         });
@@ -184,6 +222,7 @@ export function QuickCheckView() {
         }
         setResult(body);
         setStatus('Saved to history as a manual check.');
+        void linkStoredMedia(body.detectionId);
       } catch {
         setFailure('Could not reach the server to identify the frame.');
         setStatus('Identification failed - see below.');
@@ -191,7 +230,7 @@ export function QuickCheckView() {
         busyRef.current = false;
       }
     },
-    [],
+    [linkStoredMedia],
   );
 
   const captureCurrentFrame = useCallback(async (): Promise<boolean> => {
@@ -204,10 +243,9 @@ export function QuickCheckView() {
     if (!context) return false;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    const thumbnail = thumbnailFromCanvas(canvas);
     video.pause();
     setWatching(false);
-    await analyze(dataUrl, thumbnail, video.currentTime);
+    await analyze(dataUrl, video.currentTime);
     return true;
   }, [analyze]);
 
@@ -246,6 +284,7 @@ export function QuickCheckView() {
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    startUpload(file);
     setLocalDetector(null);
     setFrame(null);
     setResult(null);
@@ -258,11 +297,12 @@ export function QuickCheckView() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    startUpload(file);
     setLocalDetector(null);
     setStatus('Reading the snapshot...');
     try {
-      const { dataUrl, thumbnail } = await frameFromImageFile(file);
-      await analyze(dataUrl, thumbnail, null);
+      const dataUrl = await frameFromImageFile(file);
+      await analyze(dataUrl, null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setFailure(message);
@@ -275,6 +315,8 @@ export function QuickCheckView() {
     setFrame(null);
     setResult(null);
     setFailure(null);
+    setStored(null);
+    setStoreError(null);
     setStatus('Ready — upload a photo or video to check any animal.');
   }
 
@@ -283,11 +325,19 @@ export function QuickCheckView() {
       <div className="row">
         <label className="field">
           Video file
-          <input type="file" accept="video/*" onChange={onFileChange} />
+          <input
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            onChange={onFileChange}
+          />
         </label>
         <label className="field">
           Photo to check
-          <input type="file" accept="image/*" onChange={onSnapshotChange} />
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={onSnapshotChange}
+          />
         </label>
       </div>
 
@@ -383,12 +433,28 @@ export function QuickCheckView() {
               </p>
             </>
           ) : null}
+          {storing ? <p className="muted">Storing the original file in the bucket...</p> : null}
+          {stored ? (
+            <p className="muted">
+              Original {stored.kind} stored ({Math.round(stored.sizeBytes / 1024)} kB) -{' '}
+              <a href={stored.url} target="_blank" rel="noreferrer">
+                open the stored copy
+              </a>
+              .
+            </p>
+          ) : null}
+          {storeError ? (
+            <p className="failure" role="alert">
+              The analysis was saved, but the original file could not be stored: {storeError}
+            </p>
+          ) : null}
         </section>
       ) : null}
 
       <p className="muted">
-        Quick check needs no camera. Only the single captured frame is sent to the server for
-        identification. The animal name is an estimate — always check the frame before acting.
+        Quick check needs no camera. The analysed frame is sent to the AI model, and the original
+        file is kept in your own object bucket. The animal name is an estimate — always check the
+        frame before acting.
       </p>
     </section>
   );

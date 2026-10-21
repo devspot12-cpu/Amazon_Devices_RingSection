@@ -37,8 +37,6 @@ export interface SaveDetectionInput {
   source?: DetectionSource;
   /** Farm region active when the frame was judged. */
   region?: string | null;
-  /** Small JPEG data URL of the analysed frame. */
-  thumbnail?: string | null;
 }
 
 export async function saveDetection(
@@ -59,13 +57,49 @@ export async function saveDetection(
       model: input.model,
       peopleOnly: input.peopleOnly,
       status: input.status,
-      thumbnail: input.thumbnail ?? null,
       capturedAt: input.capturedAt,
     })
     .returning();
   const inserted = rows[0];
   if (!inserted) throw new Error('Detection insert did not return a row');
   return inserted;
+}
+
+/**
+ * Point a detection at the frame that was stored for it.
+ *
+ * The key is written after the upload, so a detection only ever points at a
+ * picture that really is in the bucket.
+ */
+export async function setDetectionImageKey(
+  db: Db,
+  id: string,
+  imageKey: string,
+): Promise<void> {
+  await db.update(detections).set({ imageKey }).where(eq(detections.id, id));
+}
+
+/** The stored frame of one detection, or null when it has no picture. */
+export async function getDetectionImageKey(
+  db: Db,
+  id: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ imageKey: detections.imageKey })
+    .from(detections)
+    .where(eq(detections.id, id))
+    .limit(1);
+  return rows[0]?.imageKey ?? null;
+}
+
+/** True when a detection with this id exists - used to validate an upload link. */
+export async function detectionExists(db: Db, id: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: detections.id })
+    .from(detections)
+    .where(eq(detections.id, id))
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** One row of the history feed, with the camera it belongs to (if any). */
@@ -85,8 +119,8 @@ export interface DetectionRow {
   peopleOnly: boolean;
   status: string;
   capturedAt: string;
-  /** Small JPEG data URL of the analysed frame. */
-  thumbnail: string | null;
+  /** Object key of the stored frame, null when the detection has no picture. */
+  imageKey: string | null;
 }
 
 /** Newest detections first - the dashboard's threat log, one region only. */
@@ -112,7 +146,7 @@ export async function listRecentDetections(
       peopleOnly: detections.peopleOnly,
       status: detections.status,
       capturedAt: detections.capturedAt,
-      thumbnail: detections.thumbnail,
+      imageKey: detections.imageKey,
     })
     .from(detections)
     .leftJoin(cameras, eq(detections.cameraId, cameras.id))
@@ -124,12 +158,15 @@ export async function listRecentDetections(
 
 /** The most recent capture of one camera - what the hover preview shows. */
 export interface CameraCaptureRow {
+  /** The detection the frame belongs to; its id addresses the stored picture. */
+  id: string;
   cameraId: string;
   species: string;
   animalScore: number;
   dangerType: string;
   capturedAt: string;
-  thumbnail: string | null;
+  /** Object key of the stored frame, null when the detection has no picture. */
+  imageKey: string | null;
 }
 
 /**
@@ -145,12 +182,13 @@ export async function listLatestDetectionByCamera(
 ): Promise<CameraCaptureRow[]> {
   const rows = await db
     .select({
+      id: detections.id,
       cameraId: detections.cameraId,
       species: detections.species,
       animalScore: detections.animalScore,
       dangerType: detections.dangerType,
       capturedAt: detections.capturedAt,
-      thumbnail: detections.thumbnail,
+      imageKey: detections.imageKey,
     })
     .from(detections)
     .where(

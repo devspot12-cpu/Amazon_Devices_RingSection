@@ -32,13 +32,17 @@ Open <http://localhost:3000> and:
 
 ### Configure the AI model
 
-The demo needs one key (in `apps/web/.env.local`, never in git):
+The demo needs one key (in `.env.local` at the repository root, never in git):
 
 ```powershell
-Copy-Item .env.example apps\web\.env.local
-# then edit apps\web\.env.local:
+Copy-Item .env.example .env.local
+# then edit .env.local:
 #   OPENROUTER_API_KEY=sk-or-...
 ```
+
+All runtime configuration lives in that single root `.env.local`; `.env.example` documents the
+variable names. `apps/web/next.config.mjs` loads the root file explicitly, since Next only reads
+env files from its own app directory by default.
 
 * **OpenRouter** is the classifier (`OPENROUTER_VISION_MODEL`, default
   `minimax/minimax-m3.1-flash:free`).
@@ -60,6 +64,16 @@ docker compose up -d db
 
 Two tables carry the demo: `cameras` (what the user registers) and `detections` (timestamp,
 animal type, animal score, danger type/score, per camera).
+
+### Object storage
+
+The photo or video the user picks and the analysed frame are kept in an S3-compatible bucket
+(`uploads/<id>.<ext>`, `captures/<id>.jpg`); the database holds only the object key. Reads go
+through `/api/media/<id>` and `/api/captures/<id>`, which redirect to a fresh five-minute
+presigned URL. Configure `AWS_ENDPOINT_URL_S3`, `AWS_S3_BUCKET`, `AWS_REGION`,
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in `.env.local` at the repository root. The bucket must
+already exist — the app never creates one. Without valid storage settings the analysis still
+runs, but the files are not kept.
 
 ## How it fits together
 
@@ -99,7 +113,7 @@ The app can run locally with embedded PGlite, but Vercel serverless deployments 
 1. Create an account at [neon.tech](https://neon.tech/).
 2. Create a PostgreSQL project and copy the **pooled** connection string.
 3. Add `?sslmode=require` if it is not already present.
-4. For local development, put it in `apps/web/.env.local` (never commit this file):
+4. For local development, put it in `.env.local` at the repository root (never commit this file):
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require

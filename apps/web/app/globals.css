@@ -654,13 +654,21 @@ img {
   visibility: visible;
 }
 
+.capture-card-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
 .capture-card-image {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   object-fit: cover;
-  border-radius: 8px;
-  background: var(--panel);
 }
 
 .capture-card-empty {

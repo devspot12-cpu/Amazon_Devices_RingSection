@@ -13,7 +13,7 @@ function telHref(phone: string): string {
 /**
  * Emergency contacts for the left sidebar. Public helplines are published
  * numbers; the farm contact comes from EMERGENCY_CONTACT_NAME /
- * EMERGENCY_CONTACT_PHONE in apps/web/.env.local - no number is invented.
+ * EMERGENCY_CONTACT_PHONE in .env.local at the repository root - no number is invented.
  */
 export function emergencyContactsFromEnv(env: NodeJS.ProcessEnv = process.env): EmergencyContact[] {
   const contacts: EmergencyContact[] = [
@@ -21,7 +21,7 @@ export function emergencyContactsFromEnv(env: NodeJS.ProcessEnv = process.env): 
   ];
   const ownPhone = env.EMERGENCY_CONTACT_PHONE?.trim();
   const ownName = env.EMERGENCY_CONTACT_NAME?.trim() || 'Farm emergency contact';
-  contacts.push(ownPhone ? { id: 'farm-contact', label: ownName, detail: 'Your own contact for a predator alert', phone: ownPhone, tel: telHref(ownPhone) } : { id: 'farm-contact', label: ownName, detail: 'Set EMERGENCY_CONTACT_PHONE in apps/web/.env.local' });
+  contacts.push(ownPhone ? { id: 'farm-contact', label: ownName, detail: 'Your own contact for a predator alert', phone: ownPhone, tel: telHref(ownPhone) } : { id: 'farm-contact', label: ownName, detail: 'Set EMERGENCY_CONTACT_PHONE in .env.local at the repository root' });
   return contacts;
 }
 

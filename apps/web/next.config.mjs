@@ -1,3 +1,15 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import nextEnv from '@next/env';
+
+// Runtime configuration lives once, at the repository root (`.env.local`).
+// Next only reads env files from its own app directory, so load the root set
+// before the app reads process.env.
+const appDir = path.dirname(fileURLToPath(import.meta.url));
+// @next/env is CommonJS; destructure from the default export so this file also
+// loads under plain Node, not only inside Next's config loader.
+nextEnv.loadEnvConfig(path.resolve(appDir, '../..'));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Workspace packages are TypeScript sources with no separate build step; let

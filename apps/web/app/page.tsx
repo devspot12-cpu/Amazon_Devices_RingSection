@@ -55,13 +55,13 @@ export default async function HomePage() {
       zoneKind: camera.zoneKind,
       latest: latest
         ? {
-            thumbnail: latest.thumbnail,
+            captureId: latest.imageKey ? latest.id : null,
             species: latest.species,
             animalScore: latest.animalScore,
             dangerType: latest.dangerType,
             capturedAt: latest.capturedAt,
           }
-        : { thumbnail: null, emptyNote: 'No captures yet for this camera' },
+        : { captureId: null, emptyNote: 'No captures yet for this camera' },
     };
   });
 
@@ -204,7 +204,7 @@ export default async function HomePage() {
                 <CaptureRow
                   key={row.id}
                   preview={{
-                    thumbnail: row.thumbnail,
+                    captureId: row.imageKey ? row.id : null,
                     species: row.species,
                     animalScore: row.animalScore,
                     dangerType: row.dangerType,

@@ -15,9 +15,10 @@ import { DETECTION_SOURCES, DETECTION_STATUSES, SEVERITIES, ZONE_KINDS } from '@
 /**
  * `@predator-guard/db` - the Postgres data model for the demo.
  *
- * Three tables: the single-row farm profile (US region that tunes the danger
+ * Five tables: the single-row farm profile (US region that tunes the danger
  * rules), the cameras on the farm (auto-seeded with coop/barn/pasture/gate),
- * and the analysis history - one row per frame fed to the AI model, holding
+ * the per-region predator watchlist, the uploads kept in object storage, and
+ * the analysis history - one row per frame fed to the AI model, holding
  * timestamp, animal type, animal score and danger type so the dashboard can
  * show the result live and replay the history per camera.
  *
@@ -107,11 +108,12 @@ export const detections = pgTable(
     peopleOnly: boolean('people_only').notNull().default(false),
     status: text('status', { enum: DETECTION_STATUSES }).notNull().default('done'),
     /**
-     * Small JPEG of the analysed frame, as a data URL. Optional: older
-     * detections were recorded before the frame was kept, and the dashboard
+     * Object key of the captured frame in the S3-compatible bucket, e.g.
+     * `captures/<id>.jpg`. Optional: a detection can be recorded without a
+     * picture (storage not configured, upload failed), and the dashboard
      * shows "no frame stored" for those.
      */
-    thumbnail: text('thumbnail'),
+    imageKey: text('image_key'),
     /** When the frame was captured. */
     capturedAt: timestamp('captured_at', tz).notNull(),
     createdAt: timestamp('created_at', tz).notNull().defaultNow(),
@@ -119,7 +121,38 @@ export const detections = pgTable(
   (table) => [index('detections_camera_captured_idx').on(table.cameraId, table.capturedAt)],
 );
 
+/**
+ * One file the user uploaded (a photo or a video), kept in the same
+ * S3-compatible bucket as the captured frames.
+ *
+ * Like `detections.image_key`, only the object key is stored - a presigned
+ * URL is a temporary ticket, so the database must not hold one. The browser
+ * asks `/api/media/<id>`, which signs a fresh link on every read.
+ */
+export const mediaUploads = pgTable(
+  'media_uploads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** The analysis this file belongs to, once it has been checked. */
+    detectionId: uuid('detection_id').references(() => detections.id, { onDelete: 'set null' }),
+    /** 'image' or 'video' - drives the icon and the player on the client. */
+    kind: text('kind').notNull(),
+    filename: text('filename').notNull(),
+    contentType: text('content_type').notNull(),
+    /** Upload size in bytes, recorded as the server saw it. */
+    sizeBytes: integer('size_bytes').notNull(),
+    /** Object key in the bucket, e.g. `uploads/<uuid>.jpg`. */
+    objectKey: text('object_key').notNull(),
+    createdAt: timestamp('created_at', tz).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('media_uploads_object_key_idx').on(table.objectKey),
+    index('media_uploads_detection_idx').on(table.detectionId),
+  ],
+);
+
 export type RegionWatchlist = typeof regionWatchlist.$inferSelect;
 export type Camera = typeof cameras.$inferSelect;
 export type Detection = typeof detections.$inferSelect;
 export type FarmProfile = typeof farmProfile.$inferSelect;
+export type MediaUpload = typeof mediaUploads.$inferSelect;
