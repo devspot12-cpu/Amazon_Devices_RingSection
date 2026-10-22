@@ -14,7 +14,7 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open <http://localhost:3000>. The app uses a local PGlite database by default, so no database service is required. `.env.local` is loaded from the repository root and must not be committed.
+Open <http://localhost:3000>. The app uses a local PGlite database by default. `.env.local` is loaded from the repository root and must not be committed.
 
 To enable animal identification, add your OpenRouter key to the repository-root `.env.local`:
 
@@ -22,17 +22,17 @@ To enable animal identification, add your OpenRouter key to the repository-root 
 OPENROUTER_API_KEY=your-key
 ```
 
-The default model is `minimax/minimax-m3.1-flash:free`. To use another OpenRouter model, set `OPENROUTER_VISION_MODEL` to its model ID (choose one that accepts images):
+Set `OPENROUTER_VISION_MODEL` to its model ID (choose that accepts images):
 
 ```env
 OPENROUTER_VISION_MODEL=openai/gpt-4o-mini
 ```
 
-Keep both values in the same root `.env.local`, outside `apps/`. The app loads that file for the web workspace; do not create a separate `apps/web/.env` or `.env.local`. `.env.example` lists the available settings. Without an API key, analysis returns a setup error.
+Keep both values in the same root `.env.local`.
 
-## Optional services
+## DataBase services
 
-- **PostgreSQL:** Set `DATABASE_URL` in `.env.local`. For local development, `docker compose up -d db` starts the included Postgres service. Otherwise, the app uses PGlite and stores its data in `.pglite/`.
+- **PostgreSQL:** Set `DATABASE_URL` in `.env.local`. For local development.
 - **Object storage:** Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to save uploaded media and analyzed frames. For S3-compatible storage, also set `AWS_ENDPOINT_URL_S3`; `AWS_REGION` and `AWS_S3_BUCKET` are optional.
 
 See `.env.example` for the available environment variables. Never add real credentials to it or to Git.
