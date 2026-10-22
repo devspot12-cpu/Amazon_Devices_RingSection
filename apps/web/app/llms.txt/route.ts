@@ -21,7 +21,6 @@ Animal ID is an estimate - a human should check the frame before acting. In imme
 
 - [Dashboard](${base}/): cameras, recent threat alerts, species by camera, farm region and predator watchlist. Sections: [#cameras](${base}/#cameras), [#species](${base}/#species), [#threat-alerts](${base}/#threat-alerts).
 - [Camera check](${base}/video): load a video or snapshot, pick a camera, analyze a frame.
-- [Quick check](${base}/check): upload a photo or video without a camera; saved as source "manual".
 
 ## API
 

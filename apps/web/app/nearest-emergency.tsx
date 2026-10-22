@@ -33,7 +33,11 @@ export function NearestEmergency() {
 
   async function share(result: NearbyResult) {
     const text = `Predator alert from Predator Guard - nearest police: ${result.name}${result.phone ? `, ${result.phone}` : ''} (${result.distanceKm} km away). ${result.address}`;
-    try { if (navigator.share) await navigator.share({ title: 'Predator alert', text }); else if (navigator.clipboard) await navigator.clipboard.writeText(text); } catch { /* dismissed */ }
+    try {
+      if (navigator.share) await navigator.share({ title: 'Predator alert', text });
+      else if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      else { setError('Sharing is not available in this browser.'); return; }
+    } catch { /* dismissed */ }
   }
 
   return (

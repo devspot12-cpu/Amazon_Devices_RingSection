@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { getFarm, ensureFarm, listFarmWatchlist } from '@/lib/farm';
+import { ensureFarm, listFarmWatchlist } from '@/lib/farm';
 import { listCameras } from '@/lib/cameras';
 import { getDb } from '@/lib/db';
 import {
@@ -13,7 +13,6 @@ import {
   regionLabel,
   regionTimeZone,
   REGIONS,
-  DEFAULT_REGION,
   regionWatchlist as ruleWatchlist,
 } from '@predator-guard/rules';
 
@@ -115,9 +114,6 @@ export default async function HomePage() {
             <Link className="cta" href="/video">
               Feed a frame →
             </Link>
-            <Link className="cta cta--sky" href="/check">
-              Quick check (no camera) →
-            </Link>
           </div>
         </div>
 
@@ -149,7 +145,7 @@ export default async function HomePage() {
           less so in many other regions).
         </p>
         <RegionForm
-          region={farm.region ?? DEFAULT_REGION}
+          region={farm.region}
           regions={REGIONS.map((r) => ({ id: r.id, label: r.label, states: r.states }))}
         />
         <PredatorWatchlist

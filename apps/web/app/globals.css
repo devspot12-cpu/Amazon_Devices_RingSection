@@ -322,7 +322,7 @@ h2::before {
 }
 
 .cta {
-  /* The halo colour; the sky variant overrides it. */
+  /* The halo colour. */
   --cta-glow: var(--amber);
   display: inline-flex;
   align-items: center;
@@ -349,12 +349,6 @@ h2::before {
     0 0 0 1px rgba(255, 255, 255, 0.62),
     0 0 32px -4px var(--cta-glow),
     0 22px 42px -18px var(--cta-glow);
-}
-
-/* The second hero action: same pill, sky halo. */
-.cta--sky {
-  --cta-glow: var(--sky);
-  background: linear-gradient(140deg, #38bdf8, #0ea5e9);
 }
 
 .stat-row {

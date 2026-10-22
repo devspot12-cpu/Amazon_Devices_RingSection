@@ -8,7 +8,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${base}/`, changeFrequency: 'always', priority: 1 },
     { url: `${base}/video`, changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${base}/check`, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${base}/llms.txt`, changeFrequency: 'weekly', priority: 0.5 },
   ];
 }

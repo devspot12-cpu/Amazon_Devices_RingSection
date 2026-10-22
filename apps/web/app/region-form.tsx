@@ -29,7 +29,6 @@ interface FarmBody {
 export function RegionForm({ region, regions }: { region: string; regions: RegionOption[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState(region);
-  const [current, setCurrent] = useState(region);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +51,6 @@ export function RegionForm({ region, regions }: { region: string; regions: Regio
       // Reflect the saved region right away, then refresh so the watchlist
       // (rendered from Postgres) belongs to the new region too.
       const savedRegion = body?.farm?.region ?? selected;
-      setCurrent(savedRegion);
       setSelected(savedRegion);
       router.refresh();
     } catch {
@@ -67,11 +65,7 @@ export function RegionForm({ region, regions }: { region: string; regions: Regio
       <form className="row" onSubmit={(event) => void saveRegion(event)}>
         <label className="field" style={{ maxWidth: '320px' }}>
           Farm location
-          <select
-            name="region"
-            value={selected}
-            onChange={(event) => setSelected(event.target.value)}
-          >
+          <select value={selected} onChange={(event) => setSelected(event.target.value)}>
             {regions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label} — {option.states}

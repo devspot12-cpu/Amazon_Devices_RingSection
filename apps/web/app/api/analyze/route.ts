@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { type Db } from '@predator-guard/db';
+import type { ZoneKind } from '@predator-guard/ring';
 
 import { ensureFarm } from '@/lib/farm';
 import { getDb } from '@/lib/db';
@@ -138,7 +139,8 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const capturedAt = new Date();
-    const zoneKind = camera ? (camera.zoneKind as any) : 'gate';
+    // cameras.zone_kind is DB-enum constrained to the four ZoneKind values.
+    const zoneKind: ZoneKind = camera ? (camera.zoneKind as ZoneKind) : 'gate';
     const danger = verdict.peopleOnly
       ? NO_DANGER
       : evaluateDanger(verdict.species, zoneKind, capturedAt, region);

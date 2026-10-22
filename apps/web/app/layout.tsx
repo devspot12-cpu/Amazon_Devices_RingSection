@@ -75,7 +75,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <nav className="topnav" aria-label="Primary">
               <Link href="/">Dashboard</Link>
               <Link href="/video">Camera check</Link>
-              <Link href="/check">Quick check</Link>
             </nav>
             <div className="live-cluster">
               <span className="live">LIVE</span>

@@ -58,12 +58,6 @@ const SAMPLE_MS = 700;
 const ANIMAL_THRESHOLD = 0.6;
 const BADGE_KINDS = ['critical', 'danger', 'warning', 'monitor', 'none'];
 
-declare global {
-  interface Window {
-    tf?: unknown;
-  }
-}
-
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${src}"]`);
@@ -134,6 +128,10 @@ export function VideoView() {
   const busyRef = useRef(false);
   const uploadRef = useRef<Promise<UploadedMedia | null> | null>(null);
   const uploadSeq = useRef(0);
+  /** One analysis at a time; a bump from a file pick invalidates the in-flight run. */
+  const analysisSeq = useRef(0);
+  /** Set on unmount so the "watch" polling loop cannot keep running detached. */
+  const watchAborted = useRef(false);
 
   const [cameras, setCameras] = useState<CameraOption[]>([]);
   const [cameraId, setCameraId] = useState('');
@@ -183,6 +181,7 @@ export function VideoView() {
   useEffect(() => {
     return () => {
       if (videoUrl) URL.revokeObjectURL(videoUrl);
+      watchAborted.current = true;
     };
   }, [videoUrl]);
 
@@ -226,7 +225,13 @@ export function VideoView() {
   /** One frame -> /api/analyze -> verdict + danger + saved history row. */
   const analyze = useCallback(
     async (dataUrl: string, capturedSeconds: number | null) => {
-      if (busyRef.current) return;
+      if (busyRef.current) {
+        setStatus('Still analysing the previous frame - one moment.');
+        return;
+      }
+      // Bumping the sequence marks this run current; a file pick bumps again,
+      // which makes the in-flight run's verdict stale so it never commits.
+      const seq = ++analysisSeq.current;
       busyRef.current = true;
       setFrame(dataUrl);
       setResult(null);
@@ -246,6 +251,7 @@ export function VideoView() {
         const body = (await response.json().catch(() => null)) as
           | (AnalysisResult & ErrorBody)
           | null;
+        if (seq !== analysisSeq.current) return;
         if (!response.ok) {
           const message =
             body?.detail ??
@@ -264,6 +270,7 @@ export function VideoView() {
         setStatus(`Saved to history${body.camera ? ` for ${body.camera.name}` : ''} - see the dashboard.`);
         void linkStoredMedia(body.detectionId);
       } catch {
+        if (seq !== analysisSeq.current) return;
         setFailure('Could not reach the server to identify the frame.');
         setStatus('Identification failed - see below.');
       } finally {
@@ -296,6 +303,7 @@ export function VideoView() {
       setStatus('Choose a camera first - add one on the dashboard.');
       return;
     }
+    watchAborted.current = false;
     setWatching(true);
     setStatus('Loading the local animal detector (first time can take a few seconds)...');
     let model: CocoModel;
@@ -311,7 +319,7 @@ export function VideoView() {
     setStatus('Watching the video - the first animal frame will be captured automatically...');
     void video.play().catch(() => undefined);
     let captured = false;
-    while (!video.paused && !video.ended && !captured) {
+    while (!watchAborted.current && !video.paused && !video.ended && !captured) {
       try {
         const predictions = await model.detect(video);
         const hit = bestAnimal(predictions, ANIMAL_THRESHOLD);
@@ -332,6 +340,8 @@ export function VideoView() {
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    // Invalidate an in-flight analysis: its verdict belongs to the old file.
+    analysisSeq.current += 1;
     startUpload(file);
     setLocalDetector(null);
     setFrame(null);
@@ -360,6 +370,16 @@ export function VideoView() {
       setFailure(message);
       setStatus('Could not read that file.');
     }
+  }
+
+  /** The video may still be loading its first frame - say so instead of no-oping. */
+  function identifyFrame() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) {
+      setStatus('The video is not ready yet - wait a moment and try again.');
+      return;
+    }
+    void captureCurrentFrame();
   }
 
   function reset() {
@@ -422,7 +442,7 @@ export function VideoView() {
         </button>
         <button
           type="button"
-          onClick={() => void captureCurrentFrame()}
+          onClick={identifyFrame}
           disabled={!videoUrl || !cameraId}
         >
           Identify current frame
@@ -439,6 +459,14 @@ export function VideoView() {
         {status}
       </p>
 
+      {/* Failure detail renders outside the frame card too - a snapshot that
+          cannot be read never reaches analyze, so the card never appeared. */}
+      {failure ? (
+        <p className="failure" role="alert">
+          {failure}
+        </p>
+      ) : null}
+
       {frame ? (
         <section className="card stack">
           <h2>Analysed frame</h2>
@@ -454,11 +482,6 @@ export function VideoView() {
           )}
           {localDetector ? (
             <p className="muted">Local detector spotted: {localDetector}.</p>
-          ) : null}
-          {failure ? (
-            <p className="failure" role="alert">
-              {failure}
-            </p>
           ) : null}
           {result ? (
             <>
@@ -514,7 +537,7 @@ export function VideoView() {
           ) : null}
           {storeError ? (
             <p className="failure" role="alert">
-              The analysis was saved, but the original file could not be stored: {storeError}
+              The original file could not be stored: {storeError}
             </p>
           ) : null}
         </section>

@@ -25,15 +25,10 @@ export default function VideoPage() {
             parallel.
           </p>
         </div>
-        <div className="row">
-          <Link className="cta cta--sky" href="/check">
-            Go to Quick check (no camera) →
-          </Link>
-        </div>
       </header>
       <VideoView />
       <p>
-        <Link href="/">Dashboard &amp; history</Link> · <Link href="/check">Quick check</Link>
+        <Link href="/">Dashboard &amp; history</Link>
       </p>
     </main>
   );
