@@ -3,15 +3,7 @@ import { OpenRouterSpeciesClassifier } from '@predator-guard/vision/openrouter';
 
 import { loadConfig } from './config';
 
-/**
- * Snapshot -> AI model -> one JSON verdict.
- *
- * OpenRouter (MiniMax M3.1 Flash by default) is the only provider. Never
- * throws: an identification failure comes back as a `fallback` verdict so
- * the screen can still tell the user to check the frame themselves, and
- * `null` means "no model is configured at all" (the route turns that into
- * a 503 with setup instructions).
- */
+
 
 export interface AnimalVerdict extends Classification {
   reason?: string;

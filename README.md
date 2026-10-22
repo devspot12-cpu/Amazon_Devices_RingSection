@@ -16,13 +16,19 @@ npm run dev
 
 Open <http://localhost:3000>. The app uses a local PGlite database by default, so no database service is required. `.env.local` is loaded from the repository root and must not be committed.
 
-To enable animal identification, add an OpenRouter key to `.env.local`:
+To enable animal identification, add your OpenRouter key to the repository-root `.env.local`:
 
 ```env
 OPENROUTER_API_KEY=your-key
 ```
 
-You can optionally set `OPENROUTER_VISION_MODEL` or `OPENROUTER_BASE_URL`. Without an API key, analysis returns a setup error.
+The default model is `minimax/minimax-m3.1-flash:free`. To use another OpenRouter model, set `OPENROUTER_VISION_MODEL` to its model ID (choose one that accepts images):
+
+```env
+OPENROUTER_VISION_MODEL=openai/gpt-4o-mini
+```
+
+Keep both values in the same root `.env.local`, outside `apps/`. The app loads that file for the web workspace; do not create a separate `apps/web/.env` or `.env.local`. `.env.example` lists the available settings. Without an API key, analysis returns a setup error.
 
 ## Optional services
 
@@ -44,5 +50,6 @@ See `.env.example` for the available environment variables. Never add real crede
 - `/video` — analyze a video or snapshot
 - `/openapi.json` — API specification
 - `/llms.txt` — site and API guide for AI tools
+- [`docs/E2E_SCENARIOS.md`](docs/E2E_SCENARIOS.md) — end-to-end test scenarios
 - [`docs/FRICTION_LOG.md`](docs/FRICTION_LOG.md) — development notes
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
