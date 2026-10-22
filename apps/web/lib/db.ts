@@ -4,7 +4,6 @@ import { loadConfig } from './config';
 
 /**
  * The app's database handle.
- *
  * `getDb()` is a lazy singleton pinned to `globalThis`: Next.js dev hot-reload
  * re-evaluates modules on every edit, and without the pin each reload would
  * open another PGlite instance (each one a multi-second WASM boot) or another

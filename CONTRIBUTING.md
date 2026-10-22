@@ -5,10 +5,8 @@ How changes get into this repository.
 ## The short version
 
 1. Branch off `main`, named `dev/<something>`.
-2. Commit your work.
 3. Push the branch and open a pull request **into `main`**.
-4. CI must pass. One approval is required.
-5. Someone (not the author, if the author is not an admin) approves and merges.
+4. CI must pass. One approval other than author is required.
 
 **Never push directly to `main`.** It is blocked by a repository ruleset, and the
 CI guard fails any PR that does not follow the convention below.
@@ -16,12 +14,6 @@ CI guard fails any PR that does not follow the convention below.
 ## Branch naming
 
 Branches must start with `dev/`:
-
-```bash
-git checkout main
-git pull --ff-only
-git checkout -b dev/add-device-list
-```
 
 Good names:
 
@@ -32,24 +24,7 @@ dev/docs-update
 ```
 
 ### Why not `main/dev/...`
-
-The convention `main/dev/<name>` is **impossible** while the trunk branch is
-called `main`. Git stores branches as files, so `refs/heads/main` is a file and
-`refs/heads/main/dev/x` would need it to be a directory. Both local git and
 GitHub reject it:
-
-```
-$ git checkout -b main/dev/probe
-fatal: cannot lock ref 'refs/heads/main/dev/probe': 'refs/heads/main' exists;
-cannot create 'refs/heads/main/dev/probe'
-
-$ git push origin HEAD:refs/heads/main/dev/probe
-! [remote rejected] ... (cannot lock ref ...)
-```
-
-`dev/<name>` is the working equivalent. If you ever want `main/dev/<name>`
-literally, the trunk branch has to be renamed first — which changes every clone,
-so it is not worth it.
 
 ## Commits
 
@@ -74,26 +49,11 @@ Open a PR with `main` as the base. The `guard` job checks three things:
 | Name | Head branch must match `dev/*` |
 | History | No merge commits — rebase instead |
 
-To fix merge commits:
-
-```bash
-git fetch origin
-git rebase origin/main
-git push --force-with-lease
-```
-
-Use `--force-with-lease`, never a bare `--force`: it refuses to overwrite
-someone else's newer work.
-
 ## Required checks and approvals
 
 - **CI must be green.** The merge button stays disabled while any check is red.
 - **One approving review is required.** The author cannot approve their own PR.
 - **Conversations must be resolved** before merging.
-
-Because this repo has a single collaborator (the owner), an admin can merge with
-approval satisfied by the ruleset's administrator bypass. If you add teammates,
-their PRs will need a genuine second-person approval.
 
 ## Workflows
 

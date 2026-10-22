@@ -23,7 +23,6 @@ function readEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
   return value && value.trim() !== '' ? value.trim() : undefined;
 }
 
-/** Resolve the app configuration. Injectable so callers can pass a custom env. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     databaseUrl: readEnv(env, 'DATABASE_URL'),

@@ -9,11 +9,8 @@ export interface EmergencyContact {
 function telHref(phone: string): string {
   return phone.replace(/[^+0-9]/g, '');
 }
-
 /**
  * Emergency contacts for the left sidebar. Public helplines are published
- * numbers; the farm contact comes from EMERGENCY_CONTACT_NAME /
- * EMERGENCY_CONTACT_PHONE in .env.local at the repository root - no number is invented.
  */
 export function emergencyContactsFromEnv(env: NodeJS.ProcessEnv = process.env): EmergencyContact[] {
   const contacts: EmergencyContact[] = [

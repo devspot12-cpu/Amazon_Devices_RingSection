@@ -7,10 +7,6 @@ import type { ZoneKind } from '@predator-guard/ring';
 /**
  * The farm profile: which US region the farm sits in (which tunes the danger
  * rules) and the cameras that come with it.
- *
- * On the very first request the row and the default cameras are created, so
- * the demo is usable without the user adding anything by hand. Changing the
- * region later only re-tunes the rules - it never touches the cameras.
  */
 
 export type Farm = typeof farmProfile.$inferSelect;
