@@ -1,6 +1,6 @@
 ---
 name: sk-coding
-description: Guides coding implementation, bug-fix work through repository-pattern reuse, protected-scope discipline, minimal edits, and evidence-based validation. Use when changing application code or tests in this repository.Output only the code — no explanations, no markdown fences unless asked. For each change done in Branch and PR make sure that its recorded in docs/FRICTION_LOG.md file. 
+description: Guides coding implementation, bug-fix work through repository-pattern reuse, protected-scope discipline, minimal edits, and evidence-based validation. Use when changing application code or tests in this repository.Output only the code — no explanations, no markdown fences unless asked. When chaging the code, do not write test cases unless asked for.
 ---
 
 ## Workflow

@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./species": "./src/species.ts",
     "./openrouter": "./src/openrouter.ts"
   },
   "scripts": {

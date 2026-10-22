@@ -3,8 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
-import { regionLabel } from '@predator-guard/rules';
-
 /**
  * Farm region picker. The save goes to /api/farm as JSON and then refreshes
  * the server component, so the page stays put while the region (and the

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 
 import { cameras, farmProfile, regionWatchlist, type Db } from '@predator-guard/db';
-import { DEFAULT_REGION, regionById, regionWatchlist as ruleWatchlist, type RegionId } from '@predator-guard/rules';
+import { DEFAULT_REGION, regionWatchlist as ruleWatchlist } from '@predator-guard/rules';
 import type { ZoneKind } from '@predator-guard/ring';
 
 /**
