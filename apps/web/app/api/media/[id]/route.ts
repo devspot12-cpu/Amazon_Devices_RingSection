@@ -28,7 +28,7 @@ export async function GET(
   }
   if (!storageConfigured()) {
     return Response.json(
-      { error: 'storage_not_configured', detail: 'Object storage credentials are missing.' },
+      { error: 'storage_not_configured', detail: 'File storage is not configured on this deployment.' },
       { status: 503 },
     );
   }
@@ -53,7 +53,7 @@ export async function GET(
     return Response.json(
       {
         error: 'storage_unavailable',
-        detail: err instanceof Error ? err.message : String(err),
+        detail: 'The file could not be loaded. Try again in a moment.',
       },
       { status: 502 },
     );

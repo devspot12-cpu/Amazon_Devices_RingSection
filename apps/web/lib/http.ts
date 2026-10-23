@@ -8,6 +8,11 @@
 export function jsonError(err: unknown): Response {
   const message = err instanceof Error ? err.message : String(err);
   console.error(JSON.stringify({ stage: 'http.error', error: message }));
-  const detail = process.env.NODE_ENV === 'production' ? undefined : message;
-  return Response.json({ error: 'internal_error', ...(detail ? { detail } : {}) }, { status: 500 });
+  // Visitors get an actionable sentence, not an internal error code; the real
+  // message stays in the server log. Dev keeps it inline to shorten the loop.
+  const detail =
+    process.env.NODE_ENV === 'production'
+      ? 'Something went wrong on the server. Try again in a moment.'
+      : message;
+  return Response.json({ error: 'internal_error', detail }, { status: 500 });
 }

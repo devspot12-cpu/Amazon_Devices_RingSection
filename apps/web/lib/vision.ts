@@ -17,6 +17,15 @@ interface Provider {
 function openRouterProvider(): Provider | null {
   const config = loadConfig();
   if (!config.openRouterApiKey) return null;
+  if (!config.openRouterModel) {
+    console.warn(
+      JSON.stringify({
+        stage: 'vision.openrouter_invalid',
+        error: 'OPENROUTER_VISION_MODEL must be set to a vision-capable model ID',
+      }),
+    );
+    return null;
+  }
   try {
     return new OpenRouterSpeciesClassifier({
       apiKey: config.openRouterApiKey,

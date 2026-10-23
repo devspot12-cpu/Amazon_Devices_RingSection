@@ -48,8 +48,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json(
         {
           error: 'storage_not_configured',
-          detail:
-            'Object storage is not configured. Set AWS_ENDPOINT_URL_S3, AWS_S3_BUCKET, AWS_REGION, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env.local at the repository root.',
+          detail: 'File storage is not configured on this deployment.',
         },
         { status: 503 },
       );
@@ -124,8 +123,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json(
         {
           error: 'storage_unavailable',
-          detail:
-            'The bucket rejected the upload. Check AWS_S3_BUCKET, the endpoint and the credentials.',
+          detail: 'The file could not be stored. Try again in a moment.',
         },
         { status: 502 },
       );

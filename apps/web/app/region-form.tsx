@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
+import { errorText } from '@/lib/error-text';
+
 /**
  * Farm region picker. The save goes to /api/farm as JSON and then refreshes
  * the server component, so the page stays put while the region (and the
@@ -43,7 +45,7 @@ export function RegionForm({ region, regions }: { region: string; regions: Regio
       });
       const body = (await response.json().catch(() => null)) as (ErrorBody & FarmBody) | null;
       if (!response.ok) {
-        setError(body?.detail ?? body?.error ?? `Saving the region failed (HTTP ${response.status}).`);
+        setError(errorText(body, response.status, 'Saving the region failed'));
         return;
       }
       // Reflect the saved region right away, then refresh so the watchlist

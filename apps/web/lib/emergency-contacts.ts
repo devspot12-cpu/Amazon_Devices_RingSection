@@ -18,7 +18,7 @@ export function emergencyContactsFromEnv(env: NodeJS.ProcessEnv = process.env): 
   ];
   const ownPhone = env.EMERGENCY_CONTACT_PHONE?.trim();
   const ownName = env.EMERGENCY_CONTACT_NAME?.trim() || 'Farm emergency contact';
-  contacts.push(ownPhone ? { id: 'farm-contact', label: ownName, detail: 'Your own contact for a predator alert', phone: ownPhone, tel: telHref(ownPhone) } : { id: 'farm-contact', label: ownName, detail: 'Set EMERGENCY_CONTACT_PHONE in .env.local at the repository root' });
+  contacts.push(ownPhone ? { id: 'farm-contact', label: ownName, detail: 'Your own contact for a predator alert', phone: ownPhone, tel: telHref(ownPhone) } : { id: 'farm-contact', label: ownName, detail: 'No farm emergency contact added on this deployment' });
   return contacts;
 }
 

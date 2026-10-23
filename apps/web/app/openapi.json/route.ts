@@ -124,6 +124,70 @@ export function GET(): Response {
           responses: { '200': { description: 'Origin + nearest stations', content: json({ type: 'object' }) }, '404': { description: 'Address not found', content: json(error) }, ...errors },
         },
       },
+      '/api/ring-docs': {
+        get: {
+          summary: 'Search or read Ring documentation through the Ring Appstore Knowledge MCP server (live)',
+          description: 'Server-side proxy to the gateway configured in mcp.json. Omit params for gateway status; q searches, doc reads a full document.',
+          parameters: [
+            { name: 'q', in: 'query', schema: { type: 'string', minLength: 3, maxLength: 300 }, description: 'Natural-language search over Ring docs' },
+            { name: 'max', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 10 }, description: 'Max results (default 5)' },
+            { name: 'doc', in: 'query', schema: { type: 'string', maxLength: 500 }, description: 'File path or ring.com URL from a search result' },
+          ],
+          responses: {
+            '200': {
+              description: 'Search results, full document, or gateway status',
+              content: json({ type: 'object' }),
+            },
+            '503': { description: 'mcp_not_configured', content: json(error) },
+            ...errors,
+          },
+        },
+      },
+      '/api/ring-live': {
+        get: {
+          summary: 'Live-section status; with a token the real Ring device list (server-side OAuth token)',
+          responses: {
+            '200': { description: 'Configured=false without a token, otherwise user + devices', content: json({ type: 'object' }) },
+            ...errors,
+          },
+        },
+        post: {
+          summary: 'The motion hook: snapshot a device at one instant, classify once; S3 + history only when an animal is detected',
+          requestBody: {
+            required: true,
+            content: json({
+              type: 'object',
+              required: ['deviceId'],
+              properties: {
+                deviceId: { type: 'string', description: 'Ring device id from the device list' },
+                cameraName: { type: 'string', description: 'Local camera name to attribute the detection to (defaults to the device id)' },
+                timestampMs: { type: 'number', description: 'Epoch ms of the event - omit for the newest snapshot' },
+              },
+            }),
+          },
+          responses: {
+            '200': { description: 'Hook outcome: animalDetected, snapshot (saved/discarded), verdict, danger, detectionId', content: json({ type: 'object' }) },
+            ...errors,
+          },
+        },
+      },
+      '/api/ring-live/events': {
+        get: {
+          summary: 'Ring event history for one device (newest first)',
+          parameters: [{ name: 'deviceId', in: 'query', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Events', content: json({ type: 'object' }) }, ...errors },
+        },
+      },
+      '/api/ring-live/snapshot': {
+        get: {
+          summary: 'One on-demand frame, base64; never persisted',
+          parameters: [
+            { name: 'deviceId', in: 'query', required: true, schema: { type: 'string' } },
+            { name: 'timestampMs', in: 'query', schema: { type: 'number' } },
+          ],
+          responses: { '200': { description: 'Frame', content: json({ type: 'object' }) }, ...errors },
+        },
+      },
     },
     components: {
       schemas: {

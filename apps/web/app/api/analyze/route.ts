@@ -128,11 +128,16 @@ export async function POST(request: Request): Promise<Response> {
 
     const verdict = await classifyAnimal(image);
     if (!verdict) {
+      console.warn(
+        JSON.stringify({
+          stage: 'vision.not_configured',
+          detail: 'OPENROUTER_API_KEY is not set - the frame was not classified.',
+        }),
+      );
       return Response.json(
         {
           error: 'model_not_configured',
-          detail:
-            'No vision model is configured. Set OPENROUTER_API_KEY in .env.local at the repository root.',
+          detail: 'Animal identification is not configured on this deployment.',
         },
         { status: 503 },
       );

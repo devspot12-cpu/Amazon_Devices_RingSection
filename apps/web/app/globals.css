@@ -891,6 +891,21 @@ img {
   color: var(--ink-dim);
 }
 
+/* Snapshot paste/drag target on Camera check. */
+.dropzone {
+  flex: 1 1 240px;
+  display: grid;
+  padding: 0.35rem;
+  border: 2px dashed transparent;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone.is-dragging {
+  border-color: var(--amber);
+  background: rgba(247, 168, 63, 0.08);
+}
+
 .muted {
   color: var(--ink-muted);
   font-size: 0.9em;

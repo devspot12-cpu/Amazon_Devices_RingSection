@@ -1,3 +1,5 @@
+import { errorText } from './error-text';
+
 /**
  * Upload one photo or video to the app's object storage.
  *
@@ -31,7 +33,7 @@ export async function uploadMedia(file: File, detectionId?: string): Promise<Upl
   const response = await fetch('/api/media', { method: 'POST', body: form });
   const body = (await response.json().catch(() => null)) as MediaReply | null;
   if (!response.ok || !body?.media) {
-    throw new Error(body?.detail ?? body?.error ?? `Upload failed (HTTP ${response.status}).`);
+    throw new Error(errorText(body, response.status, 'The upload failed'));
   }
   return body.media;
 }
@@ -45,7 +47,7 @@ export async function linkMedia(mediaId: string, detectionId: string): Promise<U
   });
   const body = (await response.json().catch(() => null)) as MediaReply | null;
   if (!response.ok || !body?.media) {
-    throw new Error(body?.detail ?? body?.error ?? `Linking failed (HTTP ${response.status}).`);
+    throw new Error(errorText(body, response.status, 'Linking the file failed'));
   }
   return body.media;
 }

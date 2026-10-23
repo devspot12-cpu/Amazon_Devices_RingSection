@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 
 import { cameras, type Db } from '@predator-guard/db';
 import type { ZoneKind } from '@predator-guard/ring';
@@ -53,4 +53,22 @@ export async function createCamera(
 export async function deleteCamera(db: Db, id: string): Promise<boolean> {
   const rows = await db.delete(cameras).where(eq(cameras.id, id)).returning({ id: cameras.id });
   return rows.length > 0;
+}
+
+/**
+ * Map one live Ring device onto a registered camera by name. Reused when the
+ * live section hooks a motion event, so its detections land in the same
+ * per-camera history as manual feeds. Zone stays editable on the dashboard.
+ */
+export async function findOrCreateCameraByName(
+  db: Db,
+  input: { name: string; region: string },
+): Promise<Camera> {
+  const existing = await db
+    .select()
+    .from(cameras)
+    .where(and(eq(cameras.name, input.name), eq(cameras.region, input.region)))
+    .limit(1);
+  if (existing[0]) return existing[0];
+  return createCamera(db, { name: input.name, zoneKind: 'gate', region: input.region });
 }

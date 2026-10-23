@@ -6,13 +6,12 @@ import type { FrameInput } from './index.js';
  * (`/video`, a stand-in for a Ring feed) and reusable by the Ring
  * capture pipeline, which already produces the same kind of frame.
  *
- * The default model is MiniMax M3.1 Flash (free tier). It is a mandatory
- * reasoning model, so we ask for low effort and a generous token budget -
- * otherwise the reasoning pass can consume the whole completion and leave
- * no JSON behind.
+ * The model is not hardcoded: it comes from the OPENROUTER_VISION_MODEL
+ * environment variable. If that model is a mandatory reasoning model, we
+ * ask for low effort and a generous token budget - otherwise the reasoning
+ * pass can consume the whole completion and leave no JSON behind.
  */
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-export const DEFAULT_OPENROUTER_VISION_MODEL = 'minimax/minimax-m3.1-flash:free';
 
 export const OPENROUTER_SPECIES_PROMPT =
   'You are identifying an animal in a single camera screenshot. ' +
@@ -32,7 +31,8 @@ export interface OpenRouterClassification {
 
 export interface OpenRouterClassifierOptions {
   apiKey: string;
-  model?: string;
+  /** Model ID (e.g. from OPENROUTER_VISION_MODEL). There is no built-in default. */
+  model: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
@@ -152,6 +152,10 @@ export class OpenRouterSpeciesClassifier {
     if (!options.apiKey || options.apiKey.trim() === '') {
       throw new Error('OPENROUTER_API_KEY must be set');
     }
+    const model = options.model.trim();
+    if (model === '') {
+      throw new Error('OPENROUTER_VISION_MODEL must be set to a vision-capable model ID');
+    }
     const baseUrl = (options.baseUrl || DEFAULT_OPENROUTER_BASE_URL).trim();
     if (
       !/^https:\/\//i.test(baseUrl) &&
@@ -160,7 +164,7 @@ export class OpenRouterSpeciesClassifier {
       throw new Error('OPENROUTER_BASE_URL must start with https://');
     }
     this.apiKey = options.apiKey;
-    this.modelId = options.model || DEFAULT_OPENROUTER_VISION_MODEL;
+    this.modelId = model;
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.fetchImpl = options.fetchImpl ?? fetch;
     // Reasoning models can take a while on the free tier.
@@ -215,9 +219,11 @@ export function openRouterClassifierFromEnv(
 ): OpenRouterSpeciesClassifier {
   const apiKey = env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error('OPENROUTER_API_KEY must be set');
+  const model = env.OPENROUTER_VISION_MODEL?.trim();
+  if (!model) throw new Error('OPENROUTER_VISION_MODEL must be set');
   return new OpenRouterSpeciesClassifier({
     apiKey,
-    model: env.OPENROUTER_VISION_MODEL?.trim() || undefined,
+    model,
     baseUrl: env.OPENROUTER_BASE_URL?.trim() || undefined,
   });
 }

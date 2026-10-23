@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import { regionLabel } from '@predator-guard/rules';
 
 import { bestAnimal, formatTimeframe } from '@/lib/animal-filter';
+import { errorText } from '@/lib/error-text';
 import { linkMedia, uploadMedia, type UploadedMedia } from '@/lib/upload-media';
 import { zoneLabel } from '@/lib/zones';
 
@@ -146,6 +147,7 @@ export function VideoView() {
   const [stored, setStored] = useState<UploadedMedia | null>(null);
   const [storing, setStoring] = useState(false);
   const [storeError, setStoreError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,11 +255,7 @@ export function VideoView() {
           | null;
         if (seq !== analysisSeq.current) return;
         if (!response.ok) {
-          const message =
-            body?.detail ??
-            body?.error ??
-            `Identification failed (HTTP ${response.status}).`;
-          setFailure(message);
+          setFailure(errorText(body, response.status, 'Identification failed'));
           setStatus('Identification failed - see below.');
           return;
         }
@@ -279,6 +277,74 @@ export function VideoView() {
     },
     [cameraId, linkStoredMedia],
   );
+
+  /**
+   * One snapshot in, one verdict out - shared by the file picker, a Ctrl+V
+   * paste and a drag-and-drop from Ring live's "Check now" preview.
+   */
+  const analyseSnapshotFile = useCallback(
+    async (file: File) => {
+      if (!cameraId) {
+        setStatus('Choose a camera first - add one on the dashboard.');
+        return;
+      }
+      startUpload(file);
+      setLocalDetector(null);
+      setStatus('Reading the snapshot...');
+      try {
+        const dataUrl = await frameFromImageFile(file);
+        await analyze(dataUrl, null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setFailure(message);
+        setStatus('Could not read that file.');
+      }
+    },
+    [cameraId, startUpload, analyze],
+  );
+
+  // The snapshot "Check now" copied on the dashboard lands straight here.
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      const image = Array.from(event.clipboardData?.items ?? []).find((item) =>
+        item.type.startsWith('image/'),
+      );
+      const file = image?.getAsFile();
+      if (!file) return;
+      event.preventDefault();
+      void analyseSnapshotFile(file);
+    }
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [analyseSnapshotFile]);
+
+  async function onSnapshotDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragging(false);
+    const images = Array.from(event.dataTransfer.files ?? []).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (images.length > 0) {
+      await analyseSnapshotFile(images[0]!);
+      return;
+    }
+    // Dragging the Ring live preview carries its data URL, not a File.
+    const dataUrl =
+      event.dataTransfer.getData('text/plain') || event.dataTransfer.getData('text/uri-list');
+    if (dataUrl.startsWith('data:image/')) {
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const extension = blob.type === 'image/png' ? 'png' : 'jpg';
+        await analyseSnapshotFile(
+          new File([blob], `ring-snapshot.${extension}`, { type: blob.type || 'image/jpeg' }),
+        );
+      } catch {
+        setStatus('Could not read the dropped snapshot.');
+      }
+      return;
+    }
+    setStatus('Drop an image file, or drag the Ring live snapshot preview here.');
+  }
 
   const captureCurrentFrame = useCallback(async (): Promise<boolean> => {
     const video = videoRef.current;
@@ -355,21 +421,7 @@ export function VideoView() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!cameraId) {
-      setStatus('Choose a camera first - add one on the dashboard.');
-      return;
-    }
-    startUpload(file);
-    setLocalDetector(null);
-    setStatus('Reading the snapshot...');
-    try {
-      const dataUrl = await frameFromImageFile(file);
-      await analyze(dataUrl, null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setFailure(message);
-      setStatus('Could not read that file.');
-    }
+    await analyseSnapshotFile(file);
   }
 
   /** The video may still be loading its first frame - say so instead of no-oping. */
@@ -414,15 +466,31 @@ export function VideoView() {
             onChange={onFileChange}
           />
         </label>
-        <label className="field">
-          Snapshot (instead of a video)
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={onSnapshotChange}
-            disabled={!cameraId}
-          />
-        </label>
+        <div
+          className={`dropzone${dragging ? ' is-dragging' : ''}`}
+          onDragOver={(event) => {
+            if (!event.dataTransfer?.types.includes('Files') && !event.dataTransfer?.types.includes('text/plain')) return;
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={(event) => void onSnapshotDrop(event)}
+        >
+          <label className="field">
+            Snapshot (instead of a video)
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={onSnapshotChange}
+              disabled={!cameraId}
+            />
+            <span className="muted" style={{ fontWeight: 400, letterSpacing: 0 }}>
+              Or press Ctrl+V / drop the snapshot from Ring live “Check now”.
+            </span>
+          </label>
+        </div>
       </div>
 
       {videoUrl ? (
@@ -525,7 +593,7 @@ export function VideoView() {
               </p>
             </>
           ) : null}
-          {storing ? <p className="muted">Storing the original file in the bucket...</p> : null}
+          {storing ? <p className="muted">Saving the original file...</p> : null}
           {stored ? (
             <p className="muted">
               Original {stored.kind} stored ({Math.round(stored.sizeBytes / 1024)} kB) -{' '}

@@ -2,6 +2,8 @@
 
 import { useState, type FormEvent } from 'react';
 
+import { errorText } from '@/lib/error-text';
+
 interface NearbyResult { name: string; phone: string | null; address: string; distanceKm: number; }
 interface NearbyResponse { origin?: { label: string }; results?: NearbyResult[]; error?: string; }
 
@@ -18,7 +20,7 @@ export function NearestEmergency() {
     try {
       const response = await fetch(`/api/emergency-nearby?${query}`);
       const body = (await response.json().catch(() => null)) as NearbyResponse | null;
-      if (!response.ok) { setError(body?.error ?? `Lookup failed (HTTP ${response.status})`); setResults(null); return; }
+      if (!response.ok) { setError(errorText(body, response.status, 'The police lookup failed')); setResults(null); return; }
       setOriginLabel(body?.origin?.label ?? null); setResults(body?.results ?? []);
     } catch { setError('Could not reach the server.'); } finally { setBusy(false); }
   }

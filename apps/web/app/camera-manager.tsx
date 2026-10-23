@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
 import { ZONE_OPTIONS, zoneLabel } from '@/lib/zones';
+import { errorText } from '@/lib/error-text';
 
 import { CaptureRow, type CapturePreview } from './capture-preview';
 
@@ -24,10 +25,6 @@ export interface CameraItem {
 interface ErrorBody {
   error?: string;
   detail?: string;
-}
-
-function errorMessage(body: ErrorBody | null, status: number, fallback: string): string {
-  return body?.detail ?? body?.error ?? `${fallback} (HTTP ${status}).`;
 }
 
 export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
@@ -51,7 +48,7 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as ErrorBody | null;
-        setError(errorMessage(body, response.status, 'Adding the camera failed'));
+        setError(errorText(body, response.status, 'Adding the camera failed'));
         return;
       }
       setName('');
@@ -75,7 +72,7 @@ export function CameraManager({ cameras }: { cameras: CameraItem[] }) {
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as ErrorBody | null;
-        setError(errorMessage(body, response.status, 'Removing the camera failed'));
+        setError(errorText(body, response.status, 'Removing the camera failed'));
         return;
       }
       router.refresh();

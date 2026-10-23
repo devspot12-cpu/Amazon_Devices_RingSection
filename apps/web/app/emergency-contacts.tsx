@@ -28,7 +28,7 @@ export function EmergencyContacts({ contacts }: { contacts: EmergencyContact[] }
           <li key={contact.id} className="emergency-card">
             <strong>{contact.label}</strong>
             <span className="muted">{contact.detail}</span>
-            {contact.phone ? <span className="emergency-phone">{contact.phone}</span> : <span className="muted">No number set yet</span>}
+            {contact.phone ? <span className="emergency-phone">{contact.phone}</span> : <span className="muted">No number on file</span>}
             <span className="emergency-actions">
               {contact.tel ? <a className="btn-call" href={`tel:${contact.tel}`}>Call</a> : <button type="button" disabled>Call</button>}
               <button type="button" onClick={() => void share(contact)}>{sharedId === contact.id ? 'Shared / copied' : 'Share'}</button>
