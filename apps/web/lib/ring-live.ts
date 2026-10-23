@@ -59,7 +59,9 @@ async function ringFetch(
   const config = loadConfig();
   const token = config.ringAccessToken;
   if (!token) {
-    const failure = new Error('Live cameras are not connected on this deployment.') as RingApiFailure;
+    const failure = new Error(
+      'The value RING_ACCESS_TOKEN is not found, add the required value.',
+    ) as RingApiFailure;
     failure.status = 503;
     failure.code = 'ring_not_configured';
     throw failure;

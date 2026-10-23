@@ -396,7 +396,7 @@ export function RingLive() {
   if (!status.configured) {
     return (
       <div className="card stack-sm">
-        <strong>Live cameras are not connected on this deployment</strong>
+        <strong>RING_ACCESS_TOKEN is not found on this deployment</strong>
         <p className="muted" style={{ margin: 0 }}>
           {status.detail}
         </p>

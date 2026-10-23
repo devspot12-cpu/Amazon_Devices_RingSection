@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json(
         {
           error: 'ring_not_configured',
-          detail: 'Live cameras are not connected on this deployment.',
+          detail: 'The value RING_ACCESS_TOKEN is not found, add the required value.',
         },
         { status: 503 },
       );

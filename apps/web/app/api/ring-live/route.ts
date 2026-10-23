@@ -23,7 +23,7 @@ export async function GET(): Promise<Response> {
         {
           configured: false,
           detail:
-            'A Ring account needs to be linked before devices, live video or motion events can appear here.',
+            'The value RING_ACCESS_TOKEN is not found, add the required value.',
         },
         { status: 200 },
       );
