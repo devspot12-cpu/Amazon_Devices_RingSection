@@ -97,3 +97,11 @@ Opening the PR does not merge it. Keep rollback decisions proportional: an unmer
 Escalate a missing Ring panel, wrong-camera result, unsafe alert, privacy disclosure, or unreviewed processor as a release blocker. The coordinator pauses the affected rollout, preserves sanitized evidence, and assigns review responsibility. Production restoration and code fixes remain outside this documentation scope.
 
 Final release requires product, QA, privacy, and release dispositions from [the master checklist](10-e2e-rollout-and-verification-checklist.md). This runbook provides coordination and auditability; it does not reopen historical PRs, resolve source conflicts by assertion, or authorize production deployment.
+
+## 10. Resumable publication and duplicate prevention
+
+Persist a concise [progress record](PROGRESS.md) after each small publication group. Include verified handbook revisions, actual task-to-issue mappings, tracker assignments, remaining work, and unresolved dependencies. Never store credentials, private account details, raw household imagery, or unsupported claims of success.
+
+To resume safely, read the live branch and tracker before writing. Compare requested task ordinals with issue titles and bodies; issue numbers alone are not task identities. Reuse a verified label or milestone and correct an incomplete issue rather than creating a replacement. Treat a timed-out write as uncertain until the target file or issue is read back.
+
+For files, retain the current blob revision and apply only the intended documentation change. For PRs, locate the exact head and base combination before opening another request. Preserve valid existing summary sections when updating the single matching PR. A checkpoint records what the tools confirmed, while final verification separately establishes lengths, links, catalog counts, and the complete documentation-only diff. No progress entry grants runtime, spending, privacy, merge, or deployment approval.
