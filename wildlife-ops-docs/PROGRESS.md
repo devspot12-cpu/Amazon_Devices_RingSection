@@ -1,33 +1,36 @@
 # Wildlife Operations Progress Record
 
-## Verified recovery checkpoint — 2026-11-14
+## Checkpoint — 2026-11-14
 
-This is a resumable publication record, not a production approval or test result. Repository content and issue bodies were read back before recording this checkpoint.
+This publication record is not production approval or a claim of completed runtime tests. Re-read live objects before resuming and create only missing task ordinals.
 
-- Default branch: `main`, baseline `097e901bdc6eec2d669cf528ff90c3b63640f7ef`.
-- Operations branch exists; its inspected pre-checkpoint head is `10642a710a24f85fea00b72ad55a4437925e3173`.
-- Issues are enabled. All six requested labels and both requested milestones already exist and must be reused.
-- All ten requested handbook files exist. No matching operations PR existed at this check.
-- The inspected comparison contains only the ten handbook additions under `wildlife-ops-docs/`; there are no application changes or unrelated branch changes.
+## Verified foundation
 
-## Verified issue mapping
+- Default branch `main`; baseline `097e901bdc6eec2d669cf528ff90c3b63640f7ef`.
+- Operations branch exists. The inspected comparison contained only `wildlife-ops-docs/` additions and no unrelated changes.
+- Issues are enabled; all six requested labels exist. Reuse milestone number 3 for Milestone 1 and number 4 for Milestone 2.
+- All ten handbook files exist; no matching operations PR existed at recovery.
 
-Task sequence is independent of repository issue numbering. Every listed issue was verified at 400–500 visible-text words, exactly ten unchecked checklist items, a test table, acceptance criteria, and the required label and milestone.
+## Actual task-to-issue mapping
 
-| Requested tasks | Actual repository issues | Tracker assignment |
+| Task sequence | Repository issues | Required assignment |
 |---|---|---|
-| 01–10 | #42, #43, #44, #45, #46, #47, #48, #49, #50, #51 | Milestone number 3; ring-core-preservation |
-| 11–22 | #52, #53, #54, #55, #56, #57, #58, #59, #60, #61, #62, #63 | Milestone number 3; video-screenshot-ops |
-| 23–30 | #64, #65, #66, #67, #68, #69, #70, #71 | Milestone number 4; openrouter-vision |
-| 31–34 | Not created at this checkpoint | Milestone number 4; openrouter-vision |
-| 35–45 | Not created at this checkpoint | Milestone number 4; wildlife-qa-dataset and pr-conflict-audit |
+| 01–10 | #42–#51, respectively | Milestone 3; ring-core-preservation |
+| 11–22 | #52–#63, respectively | Milestone 3; video-screenshot-ops |
+| 23–30 | #64–#71, respectively | Milestone 4; openrouter-vision |
+| 31–34 | #72, #73, #74, #75 | Milestone 4; openrouter-vision |
+| 35–45 | Not created at this checkpoint | Milestone 4; wildlife-qa-dataset and pr-conflict-audit |
 
-## Remaining publication work
+Tasks 01–30 were read back and verified at 400–500 visible-text words, ten checklist items, a test table, acceptance criteria, and correct tracker mappings. Tasks 31–34 were individually created with tool-confirmed issue identities; final read-back validation remains required. Supplementary user-alert-ux labels are retained where appropriate.
 
-Correct handbook 03, 04, 06, 07, 08, and 10 word counts while preserving valid content. Current visible-text counts are 1,253; 2,004; 1,463; 1,420; 1,421; and 1,488 respectively. The other four handbooks meet the requested range.
+## Evidence refresh
 
-Create only missing tasks 31–45 individually, refresh free model endpoint and historical PR evidence, then create one operations PR with a summary of at least 1,000 words and every required link. Read back all deliverables and verify the complete PR path list.
+Free official endpoint metadata was retrieved for all fifteen shortlisted models on 2026-11-14. Every record declared image input and returned endpoints. No inference request or paid research call was performed. Upstream PR #10 remains merged; PR #11 remains closed without merging. Their three shared paths remain `.env.example`, `apps/web/app/page.tsx`, and `packages/vision/package.json`. An overlap is not proof of an unresolved textual conflict.
 
-## Unmeasured dependencies and safety boundaries
+## Remaining work
 
-Actual uploaded-video timestamps, wildlife accuracy, application latency, retention enforcement, and hardware tests remain unmeasured or unexecuted. Catalog times are synthetic fixture specifications; model prices and telemetry are dated sourced metadata, not benchmark results. No paid vision calls, credit purchases, application edits, merges, or real-world emergency actions are authorized by publication. Keep credentials and household evidence out of this record.
+Create only tasks 35–45 individually. Correct handbook 03, 04, 06, 07, 08, and 10 lengths while preserving valid content. Refresh handbook 03's dated matrix from the retrieved metadata. Create one PR with at least 1,000 summary words and all handbook and actual issue links. Re-read every deliverable and verify the full PR path list.
+
+## Unmeasured dependencies
+
+Uploaded-video timestamps, wildlife accuracy, application latency, privacy enforcement, and live hardware tests remain unmeasured or unexecuted. Catalog times are synthetic fixture specifications; provider telemetry and token-based cost estimates are not application benchmark results. Do not buy credits, invoke paid vision models, edit application source, merge PRs, or publish credentials and household evidence.
