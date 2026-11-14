@@ -95,3 +95,11 @@ For mock workflows, distinguish three statuses: contract fixture retained, opera
 This audit approves only the documentation scope and establishes preservation requirements. It does not certify live Ring access, successful video execution, model accuracy, storage durability, privacy compliance, or production rollout. Those decisions remain subject to [branch governance](08-pr-conflict-resolution-and-branch-governance.md), [the privacy policy](09-privacy-and-camera-frame-retention-policy.md), and [the master sign-off checklist](10-e2e-rollout-and-verification-checklist.md).
 
 Before merging the operations PR, verify that every changed repository path is under `wildlife-ops-docs/`. Before any later implementation release, repeat the retained-feature walkthrough against that candidate commit. Escalate missing panels, altered alert semantics, cross-camera results, exposed credentials, and false safety assurances as blockers rather than accepting them as incidental cleanup.
+
+## 10. Evidence dispositions and refreshed provenance
+
+The upstream PR states and changed-file lists were rechecked on 2026-11-14. PR #10 remains merged, PR #11 remains closed without merging, and their three shared paths match the overlap log. This refresh confirms historical facts only; it does not establish that present application behavior was executed or that a source conflict was repaired.
+
+Each retained capability needs its own disposition: inspected, executed and passed, executed and failed, blocked, or not executed. Include the candidate revision, environment, sanitized evidence reference, and accountable review decision. Do not collapse an inspected route into a passed browser journey or carry an old test count forward as new evidence.
+
+When a later proposal changes a retained responsibility, link the proposal to the relevant audit finding and specify the regression evidence required before approval. Preserve the original decision history rather than rewriting it to imply uninterrupted success. A reviewer can accept documentation completeness while explicitly withholding production approval, hardware certification, or permission to process household screenshots externally.
