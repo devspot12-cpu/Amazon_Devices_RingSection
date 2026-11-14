@@ -88,3 +88,9 @@ Verify keyboard-only selection and cancellation, visible focus, non-color severi
 Keep rights, ground truth, and model output reviews separable. Do not tune prompt wording on held-out clips and then report the same clips as independent accuracy evidence. Expand the dataset before making broad wildlife performance claims, especially for rare predators and global species outside the supplied media.
 
 The QA lead publishes a sanitized coverage summary identifying received fixtures, executed cases, failures, uncertainty, and blocked conditions. The privacy reviewer confirms retention and processor eligibility. The release coordinator uses [the master checklist](10-e2e-rollout-and-verification-checklist.md) to prevent documentation completion from being mistaken for production approval.
+
+## 8. Fixture revision and replay control
+
+When a supplied clip differs from its designed scenario, preserve both identities and explain the difference before execution. A revision may change measured entry time, duration, resolution, visibility, or rights restrictions; none may be silently overwritten to improve a result. Keep the original annotation decision and record which candidate used each revision.
+
+For a replay, verify the restricted digest and the frozen reviewer annotations before comparing outcomes. Reuse of a clip does not create an independent sample. Any revised prompt, model, derivative, or ground truth requires explicit version attribution so later reviewers can reproduce the comparison without relying on memory or a public screenshot of household footage.
