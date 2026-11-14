@@ -103,3 +103,9 @@ Before final review, inspect the new PR's changed-file list and mergeability. Un
 A future rollout begins with an approved limited cohort and explicit monitoring for unsafe reassurance, predator misses, false alarms, latency, spend, and privacy defects. Expand only after reviewing real evidence. Keep a known-good candidate and a documented process for stopping external analysis while preserving baseline navigation and review access.
 
 Rollback or incident actions that change shared configuration, revert code, delete data, or notify external parties require their own authorization. Record decisions and sanitized evidence rather than improvising repairs through this branch. Final acceptance means every applicable gate has accountable evidence, not simply that every document exists.
+
+## 10. Publication acceptance and resumable evidence
+
+Before accepting the operations deliverable, read back all ten handbook bodies and count visible words without counting Markdown separators or hidden link destinations. Verify the twenty prompt identifiers, thirty species rows, and twenty-five video cases. Read every tracking issue to confirm its actual number, required labels, milestone, exactly ten actionable checklist items, test table, and explicit acceptance criteria.
+
+Verify the single PR's complete summary, every handbook and issue link, and every changed path. Preserve the separate progress record so interruptions can resume without duplication. Publication may be complete while uploaded-video testing, measured model accuracy, privacy enforcement, and hardware verification remain blocked or unexecuted. Record those distinctions explicitly rather than closing operational tasks or granting release approval from documentation alone.
