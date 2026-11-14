@@ -2,11 +2,9 @@
 
 ## 1. Application standard and compatibility boundary
 
-This library contains twenty complete task prompts, each combined with the common application vision instruction below and one privacy-approved screenshot. These are product prompts for a future evaluated workflow, not a change to the assistant operating this repository or to application source. Version this library as `wildlife-vision-ops-v1`. Record prompt identifier, model, provider, and screenshot digest in restricted evaluation evidence.
+Library version `wildlife-vision-ops-v1` combines twenty complete task prompts with the common application instruction and one privacy-approved screenshot. Record prompt identifier, model, provider, and restricted screenshot digest during evaluation.
 
-The baseline adapter requests species, confidence, and peopleOnly, then adds model and done status. It does not implement the richer operational response contract described here. Preserve compatibility during audits and record any gap as a future implementation task. Do not claim that publishing prompt text changes runtime behavior.
-
-The model provides observations, not a final homeowner safety command. Product policy validates observations and selects one of the exact alert texts below. Timestamp, camera context, and model attribution appear in separate trusted UI fields; they are never interpolated from arbitrary model prose.
+The baseline adapter requests species, confidence, and peopleOnly, then adds model and done status. The richer contract below is proposed, not deployed by publishing this document. Product policy validates observations and selects literal alerts. Camera context, timestamp, and attribution come from trusted application state, never arbitrary model prose.
 
 ## 2. Common application vision instruction
 
@@ -148,10 +146,8 @@ A complete legacy-compatible observation example is `{"species":"coyote","confid
 
 **Exact alert:** “Animal identification is uncertain. Maintain distance, review the screenshot, and do not treat this result as a safety clearance.”
 
-## 5. Alert selection, failure text, and release gates
+## 5. Failure text and release verification
 
-Select alerts using validated product policy, not arbitrary model wording. A timeout, missing key, rate limit, billing failure, or invalid response uses: “Animal analysis is unavailable. The screenshot does not provide a safety clearance.” A failed upload uses: “The screenshot could not be analyzed. Try again only when a suitable frame is available.” Neither text claims that no animal exists.
+A timeout, missing key, rate limit, billing failure, or invalid reply uses: “Animal analysis is unavailable. The screenshot does not provide a safety clearance.” Failed uploads use: “The screenshot could not be analyzed. Try again only when a suitable frame is available.”
 
-Render text safely without HTML interpretation. Announce result state through accessible status messaging without stealing keyboard focus or relying on color alone. Preserve baseline Animal Score and Danger Type meanings; do not relabel self-reported confidence as a calibrated safety probability.
-
-Before approval, test all twenty prompts against their matching scenarios, adversarial image text, contradictory fields, empty replies, and multiple animals. Require deterministic text selection, validated attribution, honest uncertainty, and no raw provider error or reasoning transcript on screen. Link failures to the relevant tracking issue and block release until the standard is demonstrably implemented.
+Render plain text safely, preserve baseline Animal Score and Danger Type meanings, and provide accessible status announcements without color dependence or focus theft. Before approval, verify all twenty prompts, adversarial image text, contradictory fields, attribution, cancellation, and deterministic alert selection. Block raw provider errors, reasoning transcripts, unsafe reassurance, and unsupported precision. Record failures as future implementation tasks, not completed repairs.
